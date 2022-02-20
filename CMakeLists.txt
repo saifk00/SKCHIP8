@@ -16,8 +16,7 @@ project(SKCHIP8)
 # Chip-8 core library
 set(CHIP8_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip-8-core)
 add_library(SKChip8 
-    ${CHIP8_SRC_DIR}/CPU.cpp 
-    ${CHIP8_SRC_DIR}/Memory.cpp
+    ${CHIP8_SRC_DIR}/CPU.cpp
     ${CHIP8_SRC_DIR}/utils/ROMLoader.cpp
     ${CHIP8_SRC_DIR}/utils/CHIP8ISA.cpp)
 

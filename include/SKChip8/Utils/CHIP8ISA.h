@@ -8,6 +8,10 @@
 namespace SKChip8
 {
     class Instruction;
+    class MachineInstruction;
+    class ALUInstruction;
+    class KeyInstruction;
+    class ControlInstruction;
 
     std::unique_ptr<Instruction> DecodeInstruction(uint16_t opcode);
 
