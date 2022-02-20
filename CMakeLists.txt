@@ -19,7 +19,7 @@ add_library(SKChip8
     ${CHIP8_SRC_DIR}/CPU.cpp 
     ${CHIP8_SRC_DIR}/Memory.cpp
     ${CHIP8_SRC_DIR}/utils/ROMLoader.cpp
-    ${CHIP8_SRC_DIR}/utils/CHIP8Utils.cpp)
+    ${CHIP8_SRC_DIR}/utils/CHIP8ISA.cpp)
 
 target_include_directories(SKChip8 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8")
 

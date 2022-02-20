@@ -18,6 +18,7 @@ public:
 
     std::string getDisassembly() const;
     std::string getDump() const;
+    std::vector<uint16_t> getROM() const;
 
 private:
     std::string filename_;

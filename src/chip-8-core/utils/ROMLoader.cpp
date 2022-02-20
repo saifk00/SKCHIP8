@@ -47,18 +47,21 @@ std::string ROMLoader::getDisassembly() const
     std::stringstream disassembly;
     auto addr = ROM_START_ADDRESS;
 
-    auto addLine = [&addr, &disassembly](const std::string &line)
+    for (const auto &raw_instr : buffer_)
     {
-        disassembly << "0x" << std::hex << std::setfill('0') << std::setw(4) << addr << ": " << line << '\n';
-        addr += 2;
-    };
+        auto instr = SKChip8::DecodeInstruction(raw_instr);
+        disassembly << "0x" << std::hex << std::setfill('0') << std::setw(4) << addr << ": ";
+        instr->dump(disassembly) << '\n';
 
-    for (const auto &instr : buffer_)
-    {
-        addLine(SKChip8::DecodeInstruction(instr));
+        addr += 2;
     }
 
     return disassembly.str();
+}
+
+std::vector<uint16_t> ROMLoader::getROM() const
+{
+    return buffer_;
 }
 
 std::string ROMLoader::getDump() const
