@@ -36,7 +36,7 @@ namespace SKChip8
         FrameBuffer GetFrameBuffer() const;
 
     protected:
-        uint8_t &currentInstruction();
+        uint16_t currentInstruction();
         void handleInstruction(Instruction &inst);
         void handleInstruction(MachineInstruction &inst);
         void handleInstruction(ALUInstruction &inst);
@@ -70,7 +70,7 @@ namespace SKChip8
         std::array<bool, KEY_COUNT> keyState_;
 
         // whether the CPU is awaiting IO, etc.
-        bool halted_;
+        bool halted_ = false;
 
         // if halted, the register that should be written with the value
         // of the pressed key

@@ -57,3 +57,14 @@ target_link_libraries(SKChip8SDL
 
 target_include_directories(SKChip8SDL 
     PRIVATE "include")
+
+# Chip 8 Disassembler
+set(CHIP8_DUMP_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip8dump)
+add_executable(Chip8Dump
+	${CHIP8_DUMP_SRC_DIR}/main.cpp)
+
+target_link_libraries(Chip8Dump
+	SKChip8Utils)
+
+target_include_directories(Chip8Dump
+	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")

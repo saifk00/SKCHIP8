@@ -30,7 +30,8 @@ int main(int argc, char const *argv[])
 
     SDL_RenderSetLogicalSize(renderer, SKChip8::SCR_WIDTH, SKChip8::SCR_HEIGHT);
 
-    SDLEmuAdapter emulator("../roms/maze.ch8");
+    auto rom = argc < 2 ? "../roms/maze.ch8" : argv[1];
+    SDLEmuAdapter emulator(rom);
     emulator.Initialize();
 
     bool shouldStop = false;

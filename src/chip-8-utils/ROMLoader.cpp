@@ -27,13 +27,14 @@ void ROMLoader::parse()
     {
         std::vector<uint16_t> data;
 
-        while (!ifs.eof())
+        while (1)
         {
             char c[2];
             ifs.read(c, sizeof(uint16_t));
-
+	    if (ifs.eof()) break;
+ 
             // data is in big-endian format, so swap the bytes after
-            data.push_back((static_cast<uint16_t>(c[0]) << 8) | c[1]);
+            data.push_back((static_cast<uint8_t>(c[0]) << 8) | static_cast<uint8_t>(c[1]));
         }
 
         this->buffer_ = data;
@@ -51,8 +52,11 @@ std::string ROMLoader::getDisassembly() const
     {
         auto instr = SKChip8::DecodeInstruction(raw_instr);
         disassembly << "0x" << std::hex << std::setfill('0') << std::setw(4) << addr << ": ";
+	try {
         instr->dump(disassembly) << '\n';
-
+	} catch (const std::exception& e) {
+	  disassembly << "DW\t0x" << std::hex << std::setfill('0') << std::setw(4) << raw_instr << '\n';
+	}
         addr += 2;
     }
 
@@ -61,7 +65,8 @@ std::string ROMLoader::getDisassembly() const
 
 std::vector<uint8_t> ROMLoader::getROM() const
 {
-    std::vector<uint8_t> result(buffer_.size() * sizeof(uint16_t) / sizeof(uint8_t));
+    std::vector<uint8_t> result;
+    result.reserve(buffer_.size() * sizeof(uint16_t) / sizeof(uint8_t));
     for (const auto &word : buffer_)
     {
         result.emplace_back(word & 0xFF);

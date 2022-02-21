@@ -112,7 +112,7 @@ namespace SKChip8
         case InstructionType::SkipIfNotEqualRegisters:
             return os << "SKIPNEQ\t" << RegisterPrinter(RegisterX()) << "\t" << RegisterPrinter(RegisterY());
         case InstructionType::SetAddressImmediate:
-            return os << "SETADDR\t\t" << ImmediatePrinter(Immediate());
+	  return os << "SETADDR\t\t" << AddressPrinter(Address());
         case InstructionType::JumpLong:
             return os << "LJUMP\t\t" << AddressPrinter(Address());
         case InstructionType::RegisterMaskedRandom:

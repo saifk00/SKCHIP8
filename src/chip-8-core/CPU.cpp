@@ -20,6 +20,10 @@ static constexpr std::array<uint16_t, 256> BCD_Table = {
     0x221, 0x222, 0x223, 0x224, 0x225, 0x226, 0x227, 0x228, 0x229, 0x230, 0x231, 0x232, 0x233, 0x234, 0x235, 0x236, 0x237, 0x238, 0x239, 0x240,
     0x241, 0x242, 0x243, 0x244, 0x245, 0x246, 0x247, 0x248, 0x249, 0x250, 0x251, 0x252, 0x253, 0x254};
 
+static constexpr uint8_t font_data[] = {
+  0xFF, 0x00, 0x09, 0x00, 0x09, 0x00, 0xFF, 0x00
+};
+
 namespace SKChip8
 {
     // TODO(sk00) dependency inject a frame and audio buffer to connect this to display,
@@ -28,6 +32,11 @@ namespace SKChip8
     {
         // initialize timers, peripherals, etc.
         std::srand(std::time(0));
+	uint16_t addr = FONT_MEMORY_OFFSET;
+	for (const auto& byte : font_data) {
+	  memory_[addr] = byte;
+	  addr++;
+	}
     }
 
     void CPU::LoadROM(std::vector<uint8_t> buffer)
@@ -36,9 +45,9 @@ namespace SKChip8
         programCounter_ = PROG_MEMORY_OFFSET;
     }
 
-    uint8_t &CPU::currentInstruction()
+    uint16_t CPU::currentInstruction()
     {
-        return memory_.at(programCounter_);
+      return (static_cast<uint16_t>(memory_[programCounter_ + 1]) << 8) | memory_[programCounter_];
     }
 
     void CPU::drawSprite(uint8_t x, uint8_t y, uint8_t n)
@@ -286,7 +295,7 @@ namespace SKChip8
             }
         }
 
-        auto &instr_raw = currentInstruction();
+        auto instr_raw = currentInstruction();
         auto instr = DecodeInstruction(instr_raw);
 
         using InstructionType = Instruction::InstructionType;
