@@ -87,6 +87,7 @@ namespace SKChip8
             Return = 0x0EE
         };
 
+        // TODO(sk00) decode machine call correctly
         MachineInstruction(uint16_t opcode) : Instruction(opcode),
                                               Type(InstructionType(opcode & 0xFFF)) {}
 

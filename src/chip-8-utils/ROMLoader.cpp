@@ -1,5 +1,5 @@
-#include <Utils/ROMLoader.h>
-#include <Utils/CHIP8ISA.h>
+#include "ROMLoader.h"
+#include "CHIP8ISA.h"
 
 #include <iostream>
 #include <fstream>
@@ -59,9 +59,16 @@ std::string ROMLoader::getDisassembly() const
     return disassembly.str();
 }
 
-std::vector<uint16_t> ROMLoader::getROM() const
+std::vector<uint8_t> ROMLoader::getROM() const
 {
-    return buffer_;
+    std::vector<uint8_t> result(buffer_.size() * sizeof(uint16_t) / sizeof(uint8_t));
+    for (const auto &word : buffer_)
+    {
+        result.emplace_back(word & 0xFF);
+        result.emplace_back((word >> 8) & 0xFF);
+    }
+
+    return result;
 }
 
 std::string ROMLoader::getDump() const

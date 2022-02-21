@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 include(FetchContent)
 
-# SDDL
+# SDL2
 FetchContent_Declare(
     SDL2
     GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
@@ -11,25 +11,49 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(SDL2)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 project(SKCHIP8)
 
+# Chip-8 utils library
+set(CHIP8_UTILS_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip-8-utils)
+add_library(SKChip8Utils
+    ${CHIP8_UTILS_SRC_DIR}/CHIP8ISA.cpp
+    ${CHIP8_UTILS_SRC_DIR}/ROMLoader.cpp)
+
+target_include_directories(SKChip8Utils PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8/Utils")
+
+
 # Chip-8 core library
-set(CHIP8_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip-8-core)
-add_library(SKChip8 
-    ${CHIP8_SRC_DIR}/CPU.cpp
-    ${CHIP8_SRC_DIR}/utils/ROMLoader.cpp
-    ${CHIP8_SRC_DIR}/utils/CHIP8ISA.cpp)
+set(CHIP8_CORE_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip-8-core)
+add_library(SKChip8Core
+    ${CHIP8_CORE_SRC_DIR}/CPU.cpp)
 
-target_include_directories(SKChip8 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8")
+    # TODO(sk00) how to make this private
+target_include_directories(SKChip8Core PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8/Core"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8/")
+target_link_libraries(SKChip8Core SKChip8Utils)
 
-# Main Application
-set(CHIP8_EMU_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/emu)
-add_executable(SKChip8Emu WIN32
-    ${CHIP8_EMU_SRC_DIR}/main.cpp)
+# Chip-8 emulator library
+set(CHIP8_EMULATOR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip-8-emulator)
+add_library(SKChip8Emulator
+    ${CHIP8_EMULATOR_SRC_DIR}/Emulator.cpp)
 
-target_link_libraries(SKChip8Emu
+target_link_libraries(SKChip8Emulator SKChip8Core)
+target_include_directories(SKChip8Emulator PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8/Emulator"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8/")
+
+# Main Application (SDL)
+set(CHIP8_SDL_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/emu)
+add_executable(SKChip8SDL WIN32
+    ${CHIP8_SDL_SRC_DIR}/main.cpp
+    ${CHIP8_SDL_SRC_DIR}/SDLEmuAdapter.cpp)
+
+target_link_libraries(SKChip8SDL
     SDL2
-    SKChip8)
+    SKChip8Emulator)
 
-target_include_directories(SKChip8Emu
+target_include_directories(SKChip8SDL 
     PRIVATE "include")

@@ -1,4 +1,4 @@
-#include <Utils/CHIP8ISA.h>
+#include "CHIP8ISA.h"
 
 #include <iostream>
 #include <string>
