@@ -104,7 +104,7 @@ namespace SKChip8
         case InstructionType::JumpLong:
             return os << "LJUMP\t\t" << AddressPrinter(Address());
         case InstructionType::RegisterMaskedRandom:
-            return os << "RAND\t" << ImmediatePrinter(Immediate());
+            return os << "RAND\t" << RegisterPrinter(RegisterX()) << "\t" << ImmediatePrinter(Immediate());
         case InstructionType::DrawSprite:
             return os << "DRAW\t" << RegisterPrinter(RegisterX())
                       << "\t" << RegisterPrinter(RegisterY())
