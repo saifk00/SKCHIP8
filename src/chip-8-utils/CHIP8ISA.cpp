@@ -1,4 +1,5 @@
 #include "CHIP8ISA.h"
+#include "CHIP8Utils.h"
 
 #include <iostream>
 #include <string>
@@ -6,22 +7,9 @@
 
 namespace
 {
-    struct HexPrinter
-    {
-        HexPrinter(uint16_t val, uint8_t bits) : Bits(bits), Value(val){};
-
-        friend std::ostream &operator<<(std::ostream &os, const HexPrinter &printer)
-        {
-            return os << std::hex << std::setfill('0') << std::setw(printer.Bits / 4) << printer.Value;
-        }
-
-        uint16_t Value;
-        uint8_t Bits;
-    };
-
     struct RegisterPrinter
     {
-        HexPrinter _printer;
+        SKChip8::HexPrinter _printer;
         RegisterPrinter(uint8_t val) : _printer(val, 4) {}
 
         friend std::ostream &operator<<(std::ostream &os, const RegisterPrinter &reg)
@@ -32,7 +20,7 @@ namespace
 
     struct AddressPrinter
     {
-        HexPrinter _printer;
+        SKChip8::HexPrinter _printer;
         AddressPrinter(uint16_t val) : _printer(val, 12) {}
 
         friend std::ostream &operator<<(std::ostream &os, const AddressPrinter &addr)
@@ -43,7 +31,7 @@ namespace
 
     struct ImmediatePrinter
     {
-        HexPrinter _printer;
+        SKChip8::HexPrinter _printer;
         ImmediatePrinter(uint8_t val) : _printer(val, 8) {}
 
         friend std::ostream &operator<<(std::ostream &os, const ImmediatePrinter &imm)
@@ -54,7 +42,7 @@ namespace
 
     struct PixelHeightPrinter
     {
-        HexPrinter _printer;
+        SKChip8::HexPrinter _printer;
         PixelHeightPrinter(uint8_t val) : _printer(val, 4) {}
 
         friend std::ostream &operator<<(std::ostream &os, const PixelHeightPrinter &imm)
@@ -112,7 +100,7 @@ namespace SKChip8
         case InstructionType::SkipIfNotEqualRegisters:
             return os << "SKIPNEQ\t" << RegisterPrinter(RegisterX()) << "\t" << RegisterPrinter(RegisterY());
         case InstructionType::SetAddressImmediate:
-	  return os << "SETADDR\t\t" << AddressPrinter(Address());
+            return os << "SETADDR\t\t" << AddressPrinter(Address());
         case InstructionType::JumpLong:
             return os << "LJUMP\t\t" << AddressPrinter(Address());
         case InstructionType::RegisterMaskedRandom:
@@ -187,7 +175,7 @@ namespace SKChip8
             throw std::invalid_argument("INVALID ALU INSTRUCTION");
         }
 
-        os << instr << (printy ? "\t" : "\t\t") << RegisterPrinter(RegisterX());
+        os << instr << "\t" << RegisterPrinter(RegisterX());
         if (printy)
         {
             return os << "\t" << RegisterPrinter(RegisterY());

@@ -1,19 +1,14 @@
 cmake_minimum_required(VERSION 3.14)
 set(CMAKE_CXX_STANDARD 17)
 
-include(FetchContent)
-
-# SDL2
-FetchContent_Declare(
-    SDL2
-    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG b424665e0899769b200231ba943353a5fee1b6b6 # v2.0.20
-)
-FetchContent_MakeAvailable(SDL2)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(SKCHIP8)
+
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+find_package(SDL2 REQUIRED)
+include_directories("${SDL2_INCLUDE_DIR}")
 
 # Chip-8 utils library
 set(CHIP8_UTILS_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip-8-utils)
@@ -46,17 +41,28 @@ target_include_directories(SKChip8Emulator PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8/")
 
 # Main Application (SDL)
-set(CHIP8_SDL_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/emu)
+set(CHIP8_SDL_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/emu-sdl)
 add_executable(SKChip8SDL WIN32
     ${CHIP8_SDL_SRC_DIR}/main.cpp
     ${CHIP8_SDL_SRC_DIR}/SDLEmuAdapter.cpp)
 
 target_link_libraries(SKChip8SDL
-    SDL2
+    "${SDL2_LIBRARY}"
     SKChip8Emulator)
 
 target_include_directories(SKChip8SDL 
-    PRIVATE "include")
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+# Chip 8 Emulator CLI mode
+set(CHIP8_CLI_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/emu-cli)
+add_executable(SKChip8EmuCLI
+    ${CHIP8_CLI_SRC_DIR}/main.cpp)
+
+target_link_libraries(SKChip8EmuCLI
+    SKChip8Emulator)
+
+target_include_directories(SKChip8EmuCLI 
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 # Chip 8 Disassembler
 set(CHIP8_DUMP_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip8dump)

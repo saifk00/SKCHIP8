@@ -23,7 +23,7 @@ namespace SKChip8
 
     private:
         std::string filename_;
-        std::vector<uint16_t> buffer_;
+        std::vector<uint8_t> buffer_;
     };
 
 }

@@ -25,16 +25,17 @@ void ROMLoader::parse()
     }
     else
     {
-        std::vector<uint16_t> data;
+        std::vector<uint8_t> data;
 
         while (1)
         {
-            char c[2];
-            ifs.read(c, sizeof(uint16_t));
-	    if (ifs.eof()) break;
- 
-            // data is in big-endian format, so swap the bytes after
-            data.push_back((static_cast<uint8_t>(c[0]) << 8) | static_cast<uint8_t>(c[1]));
+            // TODO(sk00) make the endianness consistent.
+            char c;
+            ifs.read(&c, sizeof(uint8_t));
+            if (ifs.eof())
+                break;
+
+            data.push_back(c);
         }
 
         this->buffer_ = data;
@@ -48,15 +49,24 @@ std::string ROMLoader::getDisassembly() const
     std::stringstream disassembly;
     auto addr = ROM_START_ADDRESS;
 
-    for (const auto &raw_instr : buffer_)
+    std::vector<uint16_t> instructions;
+    for (size_t i = 0; i < buffer_.size() / 2; ++i)
+    {
+        instructions.push_back(buffer_[i * 2] << 8 | buffer_[i * 2 + 1]);
+    }
+
+    for (const auto &raw_instr : instructions)
     {
         auto instr = SKChip8::DecodeInstruction(raw_instr);
         disassembly << "0x" << std::hex << std::setfill('0') << std::setw(4) << addr << ": ";
-	try {
-        instr->dump(disassembly) << '\n';
-	} catch (const std::exception& e) {
-	  disassembly << "DW\t0x" << std::hex << std::setfill('0') << std::setw(4) << raw_instr << '\n';
-	}
+        try
+        {
+            instr->dump(disassembly) << '\n';
+        }
+        catch (const std::exception &e)
+        {
+            disassembly << "DW\t0x" << std::hex << std::setfill('0') << std::setw(4) << (((raw_instr >> 8) | raw_instr << 8) & 0xFFFF) << '\n';
+        }
         addr += 2;
     }
 
@@ -65,15 +75,7 @@ std::string ROMLoader::getDisassembly() const
 
 std::vector<uint8_t> ROMLoader::getROM() const
 {
-    std::vector<uint8_t> result;
-    result.reserve(buffer_.size() * sizeof(uint16_t) / sizeof(uint8_t));
-    for (const auto &word : buffer_)
-    {
-        result.emplace_back(word & 0xFF);
-        result.emplace_back((word >> 8) & 0xFF);
-    }
-
-    return result;
+    return buffer_;
 }
 
 std::string ROMLoader::getDump() const

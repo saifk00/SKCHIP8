@@ -7,10 +7,8 @@ namespace SKChip8
     void Emulator::Update()
     {
         int64_t cycles = getElapsedTime().count() / clockPeriodNS_;
-        //for (size_t i = 0; i < cycles; ++i)
-        //{
-            chip8CPU_.Cycle();
-	    //}
+
+        chip8CPU_.Cycle();
 
         // when it was called too soon, wait and perform a few cycles
         // at once next time
@@ -23,8 +21,8 @@ namespace SKChip8
     void Emulator::LoadProgram(const std::string &rompath)
     {
         ROMLoader r(rompath);
-	r.parse();
-	
+        r.parse();
+
         chip8CPU_.LoadROM(r.getROM());
 
         lastExecution_ = EmulatorClock::now();

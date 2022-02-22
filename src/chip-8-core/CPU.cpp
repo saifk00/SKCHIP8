@@ -1,5 +1,7 @@
 #include "CPU.h"
 
+#include <Utils/CHIP8Utils.h>
+
 #include <cstdlib>
 #include <ctime>
 #include <cstring>
@@ -20,9 +22,44 @@ static constexpr std::array<uint16_t, 256> BCD_Table = {
     0x221, 0x222, 0x223, 0x224, 0x225, 0x226, 0x227, 0x228, 0x229, 0x230, 0x231, 0x232, 0x233, 0x234, 0x235, 0x236, 0x237, 0x238, 0x239, 0x240,
     0x241, 0x242, 0x243, 0x244, 0x245, 0x246, 0x247, 0x248, 0x249, 0x250, 0x251, 0x252, 0x253, 0x254};
 
-static constexpr uint8_t font_data[] = {
-  0xFF, 0x00, 0x09, 0x00, 0x09, 0x00, 0xFF, 0x00
-};
+static constexpr uint8_t font_data[8] = {
+    0xFF, 0x00, 0x09, 0x00, 0x09, 0x00, 0xFF, 0x00};
+
+namespace
+{
+    struct BytePrinter
+    {
+        SKChip8::HexPrinter _printer;
+        BytePrinter(uint8_t val) : _printer(val, 8) {}
+
+        friend std::ostream &operator<<(std::ostream &os, const BytePrinter &reg)
+        {
+            return os << "0x" << reg._printer;
+        }
+    };
+
+    struct PlainBytePrinter
+    {
+        SKChip8::HexPrinter _printer;
+        PlainBytePrinter(uint8_t val) : _printer(val, 8) {}
+
+        friend std::ostream &operator<<(std::ostream &os, const PlainBytePrinter &reg)
+        {
+            return os << reg._printer;
+        }
+    };
+
+    struct WordPrinter
+    {
+        SKChip8::HexPrinter _printer;
+        WordPrinter(uint16_t val) : _printer(val, 16) {}
+
+        friend std::ostream &operator<<(std::ostream &os, const WordPrinter &reg)
+        {
+            return os << "0x" << reg._printer;
+        }
+    };
+}
 
 namespace SKChip8
 {
@@ -32,11 +69,28 @@ namespace SKChip8
     {
         // initialize timers, peripherals, etc.
         std::srand(std::time(0));
-	uint16_t addr = FONT_MEMORY_OFFSET;
-	for (const auto& byte : font_data) {
-	  memory_[addr] = byte;
-	  addr++;
-	}
+        uint16_t addr = FONT_MEMORY_OFFSET;
+        for (const auto &byte : font_data)
+        {
+            memory_[addr] = byte;
+            addr++;
+        }
+
+        // initialize registers
+        for (uint8_t i = 0; i < REG_COUNT; i++)
+        {
+            registerFile_[i] = 0;
+        }
+
+        // initialize keyboard
+        for (uint8_t i = 0; i < KEY_COUNT; i++)
+        {
+            keyState_[i] = false;
+        }
+
+        delayTimer_ = 0;
+        soundTimer_ = 0;
+        systemClock_ = 0;
     }
 
     void CPU::LoadROM(std::vector<uint8_t> buffer)
@@ -47,18 +101,23 @@ namespace SKChip8
 
     uint16_t CPU::currentInstruction()
     {
-      return (static_cast<uint16_t>(memory_[programCounter_ + 1]) << 8) | memory_[programCounter_];
+        return memory_[programCounter_] << 8 | memory_[programCounter_ + 1];
     }
 
     void CPU::drawSprite(uint8_t x, uint8_t y, uint8_t n)
     {
         bool collision = false;
+        const auto offset = x % 8;
         for (size_t idx = 0; idx < n; ++idx)
         {
             auto &row = memory_[indexRegister_ + idx];
 
             auto frameIndex = flattenedFrameBufferIndex(x, y + idx);
-            frameBuffer_[frameIndex] ^= row;
+            frameBuffer_[frameIndex] ^= (row >> offset);
+            if (offset > 0 && frameIndex < FRAME_BUFFER_SIZE - 1)
+            {
+                frameBuffer_[frameIndex + 1] ^= (row << (8 - offset)) & 0xFF;
+            }
 
             // TODO(sk00) set Vf to 1 if any pixels in frameBuffer_ were unset
         }
@@ -116,7 +175,9 @@ namespace SKChip8
             registerFile_[inst.RegisterX()] = std::rand() & inst.Immediate();
             break;
         case InstructionType::DrawSprite:
-            drawSprite(inst.RegisterX(), inst.RegisterY(), inst.Immediate());
+            auto x = registerFile_[inst.RegisterX()];
+            auto y = registerFile_[inst.RegisterY()];
+            drawSprite(x, y, inst.PixelHeight());
             break;
         }
     }
@@ -253,11 +314,15 @@ namespace SKChip8
     CPU::FrameBuffer CPU::GetFrameBuffer() const
     {
         FrameBuffer buf;
+
         for (size_t i = 0; i < SCR_HEIGHT; ++i)
         {
-            for (size_t j = 0; j < SCR_WIDTH; ++j)
+            for (size_t j = 0; j < SCR_WIDTH / 8; ++j)
             {
-                buf[i][j] = frameBuffer_[flattenedFrameBufferIndex(i, j)];
+                for (int b = 0; b < 8; ++b)
+                {
+                    buf[i][8 * j + b] = (frameBuffer_[SCR_WIDTH / 8 * i + j] >> (7 - b)) & 0x1;
+                }
             }
         }
 
@@ -270,10 +335,14 @@ namespace SKChip8
             delayTimer_--;
         if (soundTimer_ > 0)
             delayTimer_--;
+
+        systemClock_++;
     }
 
     void CPU::Cycle()
     {
+        std::cerr << DumpState() << std::endl;
+
         timerTick();
 
         if (halted_)
@@ -317,5 +386,121 @@ namespace SKChip8
             handleInstruction(*instr);
             break;
         }
+
+        programCounter_ += 2;
+    }
+
+    void CPU::SetKeyState(uint8_t key, bool state)
+    {
+        keyState_[key] = state;
+    }
+
+    std::string CPU::dumpSpecial() const
+    {
+        std::stringstream ss;
+        // PC, index
+        ss << "PC: " << WordPrinter(programCounter_)
+           << "\n"
+           << "Index: " << WordPrinter(indexRegister_)
+           << "\n";
+        // timers
+        ss << "Delay: " << BytePrinter(delayTimer_)
+           << "\n"
+           << "Sound: " << BytePrinter(soundTimer_)
+           << "\n";
+
+        return ss.str();
+    }
+
+    std::string CPU::dumpRegisters() const
+    {
+        std::stringstream ss;
+        for (size_t i = 0; i < registerFile_.size(); ++i)
+        {
+            ss << "V" << i << ": " << BytePrinter(registerFile_[i]) << "\n";
+        }
+
+        return ss.str();
+    }
+
+    std::string CPU::dumpMemory() const
+    {
+        std::stringstream ss;
+        for (size_t i = PROG_MEMORY_OFFSET; i < memory_.size(); ++i)
+        {
+            ss << PlainBytePrinter(memory_[i]) << " ";
+            if (i % 16 == 15)
+            {
+                ss << "\n";
+            }
+        }
+
+        return ss.str();
+    }
+
+    std::string CPU::dumpFrameBuffer() const
+    {
+        std::stringstream ss;
+        uint8_t col = 0;
+        for (const auto &byte : frameBuffer_)
+        {
+            for (int i = 0; i < 8; ++i)
+            {
+                ss << ((byte >> (7 - i) & 1) ? "1" : "0");
+            }
+
+            if (col % 8 == 7)
+            {
+                ss << "\n";
+            }
+
+            col = (col + 1) % 8;
+        }
+
+        return ss.str();
+    }
+
+    std::string CPU::dumpStack() const
+    {
+        std::stringstream ss;
+        std::stack<uint16_t> stack(callStack_);
+        for (size_t i = 0; i < stack.size(); ++i)
+        {
+            auto val = stack.top();
+            stack.pop();
+            ss << WordPrinter(val) << "\n";
+        }
+
+        return ss.str();
+    }
+
+    std::string CPU::dumpKeyboard() const
+    {
+        std::stringstream ss;
+        for (size_t i = 0; i < keyState_.size(); ++i)
+        {
+            ss << (keyState_[i] ? "X" : "O");
+        }
+
+        return ss.str();
+    }
+
+    std::string CPU::DumpState() const
+    {
+        std::stringstream ss;
+        ss << "=== CPU State Dump (cycle: " << systemClock_ << ") ===\n";
+        ss << dumpSpecial()
+           << "\n==REGISTERS==\n"
+           << dumpRegisters()
+           << "\n==MEMORY==\n"
+           << dumpMemory()
+           << "\n==FRAME BUFFER==\n"
+           << dumpFrameBuffer()
+           << "\n==STACK==\n"
+           << dumpStack()
+           << "\n==KEYBOARD==\n"
+           << dumpKeyboard()
+           << "\n\n";
+        return ss.str();
     }
 }

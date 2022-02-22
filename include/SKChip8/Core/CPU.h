@@ -20,6 +20,7 @@ namespace SKChip8
     static constexpr uint16_t FONT_MEMORY_OFFSET = 0x000;
     // each font sprite is 5 bytes
     static constexpr uint16_t FONT_BYTES = 5;
+    static constexpr uint16_t FRAME_BUFFER_SIZE = (SCR_WIDTH / 8) * SCR_HEIGHT;
 
     class CPU
     {
@@ -32,8 +33,13 @@ namespace SKChip8
         // updates state by one cycle
         void Cycle();
 
-        using FrameBuffer = std::array<std::array<uint8_t, SCR_WIDTH>, SCR_HEIGHT>;
+        // set the key state
+        void SetKeyState(uint8_t key, bool state);
+
+        using FrameBuffer = std::array<std::array<bool, SCR_WIDTH>, SCR_HEIGHT>;
         FrameBuffer GetFrameBuffer() const;
+
+        std::string DumpState() const;
 
     protected:
         uint16_t currentInstruction();
@@ -47,11 +53,18 @@ namespace SKChip8
 
         void timerTick();
 
+        std::string dumpSpecial() const;
+        std::string dumpRegisters() const;
+        std::string dumpMemory() const;
+        std::string dumpFrameBuffer() const;
+        std::string dumpStack() const;
+        std::string dumpKeyboard() const;
+
     private:
         // true if the keyboard changed state since the last cycle
         bool isKeyboardDirty() const { return externState_ & KEYBOARD_DIRTY_BIT; }
 
-        constexpr size_t flattenedFrameBufferIndex(uint8_t x, uint8_t y) const { return (SCR_WIDTH >> 4) * y + (x >> 8); }
+        constexpr size_t flattenedFrameBufferIndex(uint8_t x, uint8_t y) const { return (SCR_WIDTH / 8) * y + (x / 8); }
 
         // big endian memory
         std::array<uint8_t, CHIP8_MEM_SIZE> memory_;
@@ -63,7 +76,7 @@ namespace SKChip8
 
         // framebuffer in a row-major packed format
         // pixel (x, y) occurs at A[(SCR_WIDTH/8)*y + (x/8)] >> (8 - (x % 8))
-        std::array<uint8_t, (SCR_WIDTH / 8) * SCR_HEIGHT> frameBuffer_;
+        std::array<uint8_t, FRAME_BUFFER_SIZE> frameBuffer_;
         std::stack<uint16_t> callStack_;
 
         // TODO(sk00) implement this from the injection
