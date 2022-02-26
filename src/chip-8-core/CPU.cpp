@@ -22,7 +22,7 @@ static constexpr std::array<uint16_t, 256> BCD_Table = {
     0x221, 0x222, 0x223, 0x224, 0x225, 0x226, 0x227, 0x228, 0x229, 0x230, 0x231, 0x232, 0x233, 0x234, 0x235, 0x236, 0x237, 0x238, 0x239, 0x240,
     0x241, 0x242, 0x243, 0x244, 0x245, 0x246, 0x247, 0x248, 0x249, 0x250, 0x251, 0x252, 0x253, 0x254};
 
-static constexpr uint8_t font_data[SKChip8::FONT_BYTES * 16] = {
+static constexpr uint8_t font_data[SKChip8::FONT_DATA_SIZE] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -85,32 +85,41 @@ namespace SKChip8
     {
         // initialize timers, peripherals, etc.
         std::srand(std::time(0));
-        std::memcpy(memory_.data() + FONT_MEMORY_OFFSET, font_data, sizeof(font_data));
 
-        // initialize registers
-        for (uint8_t i = 0; i < REG_COUNT; i++)
-        {
-            registerFile_[i] = 0;
-        }
+        // store the font data in memory, and set the rest to zero just to be safe
+        std::memset(memory_.data(), 0, memory_.size());
+        std::memcpy(memory_.data() + FONT_MEMORY_OFFSET, font_data, FONT_DATA_SIZE);
 
-        // initialize keyboard
-        for (uint8_t i = 0; i < KEY_COUNT; i++)
-        {
-            keyState_[i] = false;
-        }
-
-        // clear framebuffer
+        // initialize registers, keyboard, and clear the framebuffer by default
+        // some programs will manually clear it at the start but others do not
+        std::memset(registerFile_.data(), 0, registerFile_.size());
+        std::memset(keyState_.data(), 0, keyState_.size());
         std::memset(frameBuffer_.data(), 0, frameBuffer_.size());
 
         delayTimer_ = 0;
         soundTimer_ = 0;
         systemClock_ = 0;
+
+        // start a real-time thread for the 60Hz timers
+        timerThread_ = std::thread([](CPU *cpu)
+                                   {
+            while(true) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(16));
+                cpu->timerTick();
+            } },
+                                   this);
+    }
+
+    CPU::~CPU()
+    {
+        timerThread_.join();
     }
 
     void CPU::LoadROM(std::vector<uint8_t> buffer)
     {
         std::copy(buffer.begin(), buffer.end(), memory_.begin() + PROG_MEMORY_OFFSET);
         programCounter_ = PROG_MEMORY_OFFSET;
+        shouldIncrementPC_ = true;
     }
 
     uint16_t CPU::currentInstruction()
@@ -120,20 +129,51 @@ namespace SKChip8
 
     void CPU::drawSprite(uint8_t x, uint8_t y, uint8_t n)
     {
-        bool collision = false;
-        const auto offset = x % 8;
+        const uint8_t offset = x % 8;
         for (size_t idx = 0; idx < n; ++idx)
         {
-            auto &row = memory_[indexRegister_ + idx];
+            const auto &row = memory_[indexRegister_ + idx];
+            const auto frameIndex = flattenedFrameBufferIndex(x, y + idx);
+            // since the framebuffer is stored 8 bits at a time, we need
+            // to perform some masking to get the data correct.
 
-            auto frameIndex = flattenedFrameBufferIndex(x, y + idx);
-            frameBuffer_[frameIndex] ^= (row >> offset);
+            // offset tells us the position of the first bit from the left
+            // that should get XORed (i.e. in a framebuffer byte)
+
+            // example: offset = 3
+            // framebuffer: 8b'11011001  8'b01101110
+            // sprite row: 8'b11000011
+            // x = 12, offset = 12 % 8 = 4
+            //                 11011001 01101110
+            //                 --->1100 0011
+            //                 =================
+            //                 11010101 01011110
+
+            // Also, Vf should be set to 1 if any pixels were flipped from set to unset.
+            // since sprites are XORed into the framebuffer, this happens when
+            // the framebuffer and sprite are both a 1 in the same bit which is equivalent
+            // to a bitwise AND.
+
+            // we don't need to mask the framebuffer when performing this AND because the
+            // types are unsigned so this is a logical shift and therefore the missing bits
+            // will be zeros
+            const auto spriteThisPart = (row >> offset);
+            const auto spriteNextPart = (row << (8 - offset));
+
+            // always set the current byte
+            registerFile_[VF_] = (frameBuffer_[frameIndex] & spriteThisPart)
+                                     ? 1
+                                     : 0;
+            frameBuffer_[frameIndex] ^= spriteThisPart;
+
+            // the sprite may overflow to the next byte
             if (offset > 0 && frameIndex < FRAME_BUFFER_SIZE - 1)
             {
-                frameBuffer_[frameIndex + 1] ^= (row << (8 - offset)) & 0xFF;
+                registerFile_[VF_] = (frameBuffer_[frameIndex + 1] & spriteNextPart)
+                                         ? 1
+                                         : registerFile_[VF_];
+                frameBuffer_[frameIndex + 1] ^= spriteNextPart;
             }
-
-            // TODO(sk00) set Vf to 1 if any pixels in frameBuffer_ were unset
         }
     }
 
@@ -143,28 +183,35 @@ namespace SKChip8
         switch (inst.Type)
         {
         case InstructionType::Goto:
+            // TODO(sk00) do this better. this assumes that the pc is incremented after the instruction
+            // is handled so it sets it to one before the next instruction to execute
             programCounter_ = inst.Address();
+            shouldIncrementPC_ = false;
             break;
         case InstructionType::Call:
             callStack_.push(programCounter_);
             programCounter_ = inst.Address();
+            shouldIncrementPC_ = false;
             break;
         case InstructionType::SkipIfEqual:
             if (registerFile_[inst.RegisterX()] == inst.Immediate())
             {
-                programCounter_ += 2;
+                programCounter_ += 4;
+                shouldIncrementPC_ = false;
             }
             break;
         case InstructionType::SkipIfNotEqual:
             if (registerFile_[inst.RegisterX()] != inst.Immediate())
             {
-                programCounter_ += 2;
+                programCounter_ += 4;
+                shouldIncrementPC_ = false;
             }
             break;
         case InstructionType::SkipIfRegistersEqual:
             if (registerFile_[inst.RegisterX()] == registerFile_[inst.RegisterY()])
             {
-                programCounter_ += 2;
+                programCounter_ += 4;
+                shouldIncrementPC_ = false;
             }
             break;
         case InstructionType::MoveRegisterXImmediate:
@@ -176,14 +223,16 @@ namespace SKChip8
         case InstructionType::SkipIfNotEqualRegisters:
             if (registerFile_[inst.RegisterX()] != registerFile_[inst.RegisterY()])
             {
-                programCounter_ += 2;
+                programCounter_ += 4;
+                shouldIncrementPC_ = false;
             }
             break;
         case InstructionType::SetAddressImmediate:
             indexRegister_ = inst.Address();
             break;
         case InstructionType::JumpLong:
-            programCounter_ = registerFile_[0] + inst.Address();
+            programCounter_ = registerFile_[V0_] + inst.Address();
+            shouldIncrementPC_ = false;
             break;
         case InstructionType::RegisterMaskedRandom:
             registerFile_[inst.RegisterX()] = std::rand() & inst.Immediate();
@@ -204,6 +253,7 @@ namespace SKChip8
         case InstructionType::MachineCall:
             callStack_.push(programCounter_);
             programCounter_ = inst.Address();
+            shouldIncrementPC_ = false;
             break;
         case InstructionType::DisplayClear:
             std::memset(frameBuffer_.data(), 0, frameBuffer_.size());
@@ -211,6 +261,7 @@ namespace SKChip8
         case InstructionType::Return:
             programCounter_ = callStack_.top();
             callStack_.pop();
+            shouldIncrementPC_ = false;
             break;
         }
     }
@@ -237,23 +288,23 @@ namespace SKChip8
             registerFile_[inst.RegisterX()] += registerFile_[inst.RegisterY()];
             break;
         case InstructionType::SUB:
-            registerFile_[0xF] = registerFile_[inst.RegisterY()] > registerFile_[inst.RegisterX()]
+            registerFile_[VF_] = registerFile_[inst.RegisterY()] > registerFile_[inst.RegisterX()]
                                      ? 0x00
                                      : 0x01;
             registerFile_[inst.RegisterX()] -= registerFile_[inst.RegisterY()];
             break;
         case InstructionType::SRL:
-            registerFile_[0xF] = registerFile_[inst.RegisterX()] & 0x1;
+            registerFile_[VF_] = registerFile_[inst.RegisterX()] & 0x1;
             registerFile_[inst.RegisterX()] >>= 1;
             break;
         case InstructionType::NSUB:
-            registerFile_[0xF] = registerFile_[inst.RegisterY()] > registerFile_[inst.RegisterX()]
+            registerFile_[VF_] = registerFile_[inst.RegisterY()] > registerFile_[inst.RegisterX()]
                                      ? 0x01
                                      : 0x00;
             registerFile_[inst.RegisterX()] = registerFile_[inst.RegisterY()] - registerFile_[inst.RegisterX()];
             break;
         case InstructionType::SLL:
-            registerFile_[0xF] = (registerFile_[inst.RegisterX()] >> 8) & 0x1;
+            registerFile_[VF_] = (registerFile_[inst.RegisterX()] >> 8) & 0x1;
             registerFile_[inst.RegisterX()] <<= 1;
             break;
         }
@@ -285,18 +336,27 @@ namespace SKChip8
         switch (inst.Type)
         {
         case InstructionType::GetDelay:
+        {
+            std::lock_guard<std::mutex> lock(timerMutex_);
             registerFile_[inst.RegisterX()] = delayTimer_;
             break;
+        }
         case InstructionType::AwaitAndGetKey:
             halted_ = true;
             registerAwaitingKey_ = inst.RegisterX();
             break;
         case InstructionType::SetDelayTimer:
+        {
+            std::lock_guard<std::mutex> lock(timerMutex_);
             delayTimer_ = registerFile_[inst.RegisterX()];
             break;
+        }
         case InstructionType::SetSoundTimer:
+        {
+            std::lock_guard<std::mutex> lock(timerMutex_);
             soundTimer_ = registerFile_[inst.RegisterX()];
             break;
+        }
         case InstructionType::IncrementAddress:
             indexRegister_ += registerFile_[inst.RegisterX()];
             break;
@@ -345,19 +405,37 @@ namespace SKChip8
 
     void CPU::timerTick()
     {
-        if (delayTimer_ > 0)
-            delayTimer_--;
-        if (soundTimer_ > 0)
-            delayTimer_--;
+        // auto now = std::chrono::high_resolution_clock::now();
+        // auto delta = now - lastTimerTick_;
+        // auto deltaMs = std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
 
-        systemClock_++;
+        // // the clock runs at 60Hz so the number of ticks is
+        // // ms * (60 ticks / 1000 ms)
+        // auto ticks = static_cast<uint8_t>(deltaMs * 60.0 / 1000.0);
+
+        // if (delayTimer_ > 0)
+        //     delayTimer_ = std::max(0, delayTimer_ - ticks);
+        // if (soundTimer_ > 0)
+        //     delayTimer_ = std::max(0, soundTimer_ - ticks);
+
+        // lastTimerTick_ = now;
+
+        std::lock_guard<std::mutex> lock(timerMutex_);
+        if (delayTimer_ > 0)
+        {
+            --delayTimer_;
+        }
+        if (soundTimer_ > 0)
+        {
+            --soundTimer_;
+        }
     }
 
     void CPU::Cycle()
     {
         std::cerr << DumpState() << std::endl;
 
-        timerTick();
+        systemClock_++;
 
         if (halted_)
         {
@@ -401,7 +479,14 @@ namespace SKChip8
             break;
         }
 
-        programCounter_ += 2;
+        if (shouldIncrementPC_)
+        {
+            programCounter_ += 2;
+        }
+        else
+        {
+            shouldIncrementPC_ = true;
+        }
     }
 
     void CPU::SetKeyState(uint8_t key, bool state)

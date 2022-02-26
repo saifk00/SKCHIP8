@@ -1,12 +1,15 @@
 #ifndef _CHIP8_CPU_H_
 #define _CHIP8_CPU_H_
 
-#include <Utils/CHIP8ISA.h>
+#include "Utils/CHIP8ISA.h"
 
 #include <memory>
 #include <cstdint>
 #include <vector>
 #include <stack>
+#include <chrono>
+#include <mutex>
+#include <thread>
 
 namespace SKChip8
 {
@@ -20,7 +23,12 @@ namespace SKChip8
     static constexpr uint16_t FONT_MEMORY_OFFSET = 0x000;
     // each font sprite is 5 bytes
     static constexpr uint16_t FONT_BYTES = 5;
+    static constexpr uint16_t FONT_DATA_SIZE = FONT_BYTES * 16;
     static constexpr uint16_t FRAME_BUFFER_SIZE = (SCR_WIDTH / 8) * SCR_HEIGHT;
+
+    // special registers implicitly used in some instructions
+    static constexpr uint8_t VF_ = 0xF;
+    static constexpr uint8_t V0_ = 0x0;
 
     class CPU
     {
@@ -41,6 +49,10 @@ namespace SKChip8
 
         std::string DumpState() const;
 
+        void timerTick();
+
+        ~CPU();
+
     protected:
         uint16_t currentInstruction();
         void handleInstruction(Instruction &inst);
@@ -50,8 +62,6 @@ namespace SKChip8
         void handleInstruction(ControlInstruction &inst);
 
         void drawSprite(uint8_t x, uint8_t y, uint8_t n);
-
-        void timerTick();
 
         std::string dumpSpecial() const;
         std::string dumpRegisters() const;
@@ -73,6 +83,7 @@ namespace SKChip8
         uint16_t indexRegister_;
         uint64_t systemClock_;
         uint16_t programCounter_;
+        bool shouldIncrementPC_;
 
         // framebuffer in a row-major packed format
         // pixel (x, y) occurs at A[(SCR_WIDTH/8)*y + (x/8)] >> (8 - (x % 8))
@@ -89,8 +100,10 @@ namespace SKChip8
         // of the pressed key
         uint8_t registerAwaitingKey_;
 
+        std::mutex timerMutex_;
         uint8_t delayTimer_;
         uint8_t soundTimer_;
+        std::thread timerThread_;
 
         // state updated async to cpu clock cycles (e.g. keyboard)
         uint8_t externState_;

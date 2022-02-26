@@ -10,6 +10,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 find_package(SDL2 REQUIRED)
 include_directories("${SDL2_INCLUDE_DIR}")
 
+find_package(Threads REQUIRED)
+
 # Chip-8 utils library
 set(CHIP8_UTILS_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip-8-utils)
 add_library(SKChip8Utils
@@ -28,7 +30,7 @@ add_library(SKChip8Core
 target_include_directories(SKChip8Core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8/Core"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8/")
-target_link_libraries(SKChip8Core SKChip8Utils)
+target_link_libraries(SKChip8Core SKChip8Utils Threads::Threads)
 
 # Chip-8 emulator library
 set(CHIP8_EMULATOR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip-8-emulator)
