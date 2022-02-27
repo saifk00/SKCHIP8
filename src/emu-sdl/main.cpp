@@ -7,14 +7,13 @@
 
 #include <iostream>
 
-static constexpr int SCR_WIDTH = 640;
-static constexpr int SCR_HEIGHT = 320;
+#include "glad/glad.h"
+
+#include "DebuggingWindow.hpp"
+#include "EmulatorWindow.hpp"
 
 int main(int argc, char *argv[])
 {
-    SDL_Surface *surface = nullptr;
-    SDL_Renderer *renderer;
-    SDL_Window *window;
     SDL_Event event;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -23,40 +22,41 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (SDL_CreateWindowAndRenderer(640, 320, SDL_WINDOW_RESIZABLE, &window, &renderer))
-    {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create window and renderer: %s", SDL_GetError());
-        return 3;
-    }
-
-    SDL_RenderSetLogicalSize(renderer, SKChip8::SCR_WIDTH, SKChip8::SCR_HEIGHT);
-
     auto rom = argc < 2 ? "../roms/maze.ch8" : argv[1];
-    SDLEmuAdapter emulator(rom);
-    emulator.Initialize();
 
-    bool shouldStop = false;
-    while (!shouldStop)
     {
-        SDL_PollEvent(&event);
-        if (event.type == SDL_QUIT)
+        auto emulator = std::make_shared<SDLEmuAdapter>(rom);
+        emulator->Initialize();
+
+        DebuggingWindow debugWindow(emulator);
+        EmulatorWindow emulatorWindow(emulator);
+
+        bool shouldStop = false;
+        while (!shouldStop)
         {
-            shouldStop = true;
+            emulator->UpdateKeyState(SDL_GetKeyboardState(NULL));
+
+            // close if either window gets closed
+            // TODO(sk00) do this only if the main emulator window is closed
+            while (SDL_PollEvent(&event))
+            {
+                if (event.type == SDL_WINDOWEVENT &&
+                    event.window.event == SDL_WINDOWEVENT_CLOSE)
+                {
+                    shouldStop = true;
+                }
+            }
+
+            emulatorWindow.Update();
+            debugWindow.Update();
+
+            SDL_Delay(10);
         }
 
-        auto frame = emulator.Draw();
-
-        SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
-        SDL_RenderClear(renderer);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-        SDL_RenderDrawPoints(renderer, frame.data(), frame.size());
-        SDL_RenderPresent(renderer);
-
-        SDL_Delay(10);
+        debugWindow.Destroy();
+        emulatorWindow.Destroy();
     }
 
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
 }

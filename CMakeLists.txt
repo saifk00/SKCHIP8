@@ -11,6 +11,7 @@ find_package(SDL2 REQUIRED)
 include_directories("${SDL2_INCLUDE_DIR}")
 
 find_package(Threads REQUIRED)
+find_package(OpenGL REQUIRED)
 
 # Chip-8 utils library
 set(CHIP8_UTILS_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/chip-8-utils)
@@ -42,18 +43,47 @@ target_include_directories(SKChip8Emulator PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8/Emulator"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/SKChip8/")
 
+# ImGUI library
+set(IMGUI_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui)
+add_library(ImGUI
+    ${IMGUI_SRC_DIR}/imgui.cpp
+    ${IMGUI_SRC_DIR}/imgui_draw.cpp
+    ${IMGUI_SRC_DIR}/imgui_widgets.cpp
+    ${IMGUI_SRC_DIR}/imgui_tables.cpp
+    ${IMGUI_SRC_DIR}/imgui_demo.cpp
+    ${IMGUI_SRC_DIR}/backends/imgui_impl_sdl.cpp
+    ${IMGUI_SRC_DIR}/backends/imgui_impl_sdlrenderer.cpp
+    ${IMGUI_SRC_DIR}/backends/imgui_impl_opengl3.cpp)
+set(IMGUI_INCLUDE_DIRS ${IMGUI_SRC_DIR} ${IMGUI_SRC_DIR}/backends)
+
+target_include_directories(ImGUI PUBLIC "${IMGUI_INCLUDE_DIRS}")
+
+# GLAD library
+set(GLAD_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/glad/src)
+set(GLAD_INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/glad/include)
+add_library(GLAD ${GLAD_SRC_DIR}/glad.c)
+target_include_directories(GLAD PUBLIC "${GLAD_INC_DIR}")
+
 # Main Application (SDL)
 set(CHIP8_SDL_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/emu-sdl)
 add_executable(SKChip8SDL WIN32
     ${CHIP8_SDL_SRC_DIR}/main.cpp
-    ${CHIP8_SDL_SRC_DIR}/SDLEmuAdapter.cpp)
+    ${CHIP8_SDL_SRC_DIR}/SDLEmuAdapter.cpp
+    ${CHIP8_SDL_SRC_DIR}/DebuggingWindow.hpp
+    ${CHIP8_SDL_SRC_DIR}/EmulatorWindow.hpp)
 
 target_link_libraries(SKChip8SDL
+    GLAD
+    "${OPENGL_LIBRARIES}"
+    ImGUI
     "${SDL2_LIBRARY}"
     SKChip8Emulator)
 
 target_include_directories(SKChip8SDL 
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    ${IMGUI_INCLUDE_DIRS}
+    ${GLAD_INC_DIR})
 
 # Chip 8 Emulator CLI mode
 set(CHIP8_CLI_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/emu-cli)

@@ -33,4 +33,9 @@ namespace SKChip8
         auto now = EmulatorClock::now();
         return (now - lastExecution_);
     }
+
+    void Emulator::SetKeyState(uint8_t key, bool state)
+    {
+        chip8CPU_.SetKeyState(key, state);
+    }
 }

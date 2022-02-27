@@ -51,8 +51,6 @@ namespace SKChip8
 
         void timerTick();
 
-        ~CPU();
-
     protected:
         uint16_t currentInstruction();
         void handleInstruction(Instruction &inst);

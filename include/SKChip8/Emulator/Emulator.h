@@ -28,6 +28,8 @@ namespace SKChip8
 
         CPU::FrameBuffer GetFrameBuffer() const { return chip8CPU_.GetFrameBuffer(); }
 
+        void SetKeyState(uint8_t key, bool state);
+
     protected:
         EmulatorDuration getElapsedTime() const;
 

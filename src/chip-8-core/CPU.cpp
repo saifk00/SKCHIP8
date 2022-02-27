@@ -110,11 +110,6 @@ namespace SKChip8
                                    this);
     }
 
-    CPU::~CPU()
-    {
-        timerThread_.join();
-    }
-
     void CPU::LoadROM(std::vector<uint8_t> buffer)
     {
         std::copy(buffer.begin(), buffer.end(), memory_.begin() + PROG_MEMORY_OFFSET);
@@ -318,13 +313,15 @@ namespace SKChip8
         case InstructionType::SkipIfPressed:
             if (keyState_[registerFile_[inst.RegisterX()]])
             {
-                programCounter_ += 2;
+                programCounter_ += 4;
+                shouldIncrementPC_ = false;
             }
             break;
         case InstructionType::SkipIfNotPressed:
             if (!keyState_[registerFile_[inst.RegisterX()]])
             {
-                programCounter_ += 2;
+                programCounter_ += 4;
+                shouldIncrementPC_ = false;
             }
             break;
         }
