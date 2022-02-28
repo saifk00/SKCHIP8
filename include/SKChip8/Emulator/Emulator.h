@@ -30,6 +30,8 @@ namespace SKChip8
 
         void SetKeyState(uint8_t key, bool state);
 
+        const CPU &GetCPU() const { return chip8CPU_; }
+
     protected:
         EmulatorDuration getElapsedTime() const;
 

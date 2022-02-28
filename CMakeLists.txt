@@ -85,6 +85,20 @@ target_include_directories(SKChip8SDL
     ${IMGUI_INCLUDE_DIRS}
     ${GLAD_INC_DIR})
 
+# opengl/sdl/imgui test application
+add_executable(SKChip8SDLTest WIN32
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gltest.cpp)
+target_link_libraries(SKChip8SDLTest
+    GLAD
+    "${OPENGL_LIBRARIES}"
+    ImGUI
+    "${SDL2_LIBRARY}")
+target_include_directories(SKChip8SDLTest
+    PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    ${IMGUI_INCLUDE_DIRS}
+    ${GLAD_INC_DIR})
+
 # Chip 8 Emulator CLI mode
 set(CHIP8_CLI_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/emu-cli)
 add_executable(SKChip8EmuCLI

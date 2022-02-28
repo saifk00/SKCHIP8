@@ -34,27 +34,31 @@ int main(int argc, char *argv[])
         bool shouldStop = false;
         while (!shouldStop)
         {
-            emulator->UpdateKeyState(SDL_GetKeyboardState(NULL));
-
-            // close if either window gets closed
-            // TODO(sk00) do this only if the main emulator window is closed
+            // handle and dispatch events
             while (SDL_PollEvent(&event))
             {
-                if (event.type == SDL_WINDOWEVENT &&
-                    event.window.event == SDL_WINDOWEVENT_CLOSE)
+                if (event.window.windowID == debugWindow.GetWindowID())
+                {
+                    debugWindow.HandleEvent(event);
+                }
+                else if (event.window.windowID == emulatorWindow.GetWindowID())
+                {
+                    emulatorWindow.HandleEvent(event);
+                }
+                else if (event.type == SDL_QUIT)
                 {
                     shouldStop = true;
+                    break;
                 }
             }
+
+            emulator->UpdateKeyState(SDL_GetKeyboardState(NULL));
 
             emulatorWindow.Update();
             debugWindow.Update();
 
             SDL_Delay(10);
         }
-
-        debugWindow.Destroy();
-        emulatorWindow.Destroy();
     }
 
     SDL_Quit();

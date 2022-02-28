@@ -14,20 +14,36 @@ class EmulatorWindow
 {
 public:
     EmulatorWindow(std::shared_ptr<SDLEmuAdapter> emulator);
-    void Destroy();
     void Update();
+    Uint32 GetWindowID() const { return SDL_GetWindowID(window_); }
+    void HandleEvent(const SDL_Event &event);
 
 protected:
     void initializeWindow();
+    void destroyWindow();
 
 private:
     std::shared_ptr<SDLEmuAdapter> emulator_;
     SDL_Window *window_;
     SDL_Renderer *renderer_;
+    bool display_;
 };
+
+void EmulatorWindow::HandleEvent(const SDL_Event &event)
+{
+    // handle events
+    if (event.type == SDL_WINDOWEVENT &&
+        event.window.event == SDL_WINDOWEVENT_CLOSE)
+    {
+        destroyWindow();
+    }
+}
 
 void EmulatorWindow::Update()
 {
+    if (!display_)
+        return;
+
     auto frame = emulator_->GetFrameBuffer();
 
     SDL_SetRenderDrawColor(renderer_, 0x00, 0x00, 0x00, 0x00);
@@ -40,6 +56,7 @@ void EmulatorWindow::Update()
 EmulatorWindow::EmulatorWindow(std::shared_ptr<SDLEmuAdapter> emulator)
 {
     emulator_ = emulator;
+    display_ = true;
 
     initializeWindow();
 }
@@ -54,10 +71,11 @@ void EmulatorWindow::initializeWindow()
     SDL_RenderSetLogicalSize(renderer_, SKChip8::SCR_WIDTH, SKChip8::SCR_HEIGHT);
 }
 
-void EmulatorWindow::Destroy()
+void EmulatorWindow::destroyWindow()
 {
     SDL_DestroyRenderer(renderer_);
     SDL_DestroyWindow(window_);
+    display_ = false;
 }
 
 #endif

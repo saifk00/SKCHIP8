@@ -15,6 +15,8 @@ public:
     std::vector<SDL_Point> GetFrameBuffer();
     void UpdateKeyState(const uint8_t *keyState);
 
+    const SKChip8::CPU &GetCPU() const { return Emulator_.GetCPU(); }
+
 private:
     SKChip8::Emulator Emulator_;
     std::string ROMPath_;

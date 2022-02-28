@@ -51,6 +51,8 @@ namespace SKChip8
 
         void timerTick();
 
+        const uint16_t &GetPC() const { return programCounter_; }
+
     protected:
         uint16_t currentInstruction();
         void handleInstruction(Instruction &inst);
