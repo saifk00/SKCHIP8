@@ -26,7 +26,6 @@ int main(int argc, char *argv[])
 
     {
         auto emulator = std::make_shared<SDLEmuAdapter>(rom);
-        emulator->Initialize();
 
         DebuggingWindow debugWindow(emulator);
         EmulatorWindow emulatorWindow(emulator);
@@ -56,8 +55,6 @@ int main(int argc, char *argv[])
 
             emulatorWindow.Update();
             debugWindow.Update();
-
-            SDL_Delay(10);
         }
     }
 

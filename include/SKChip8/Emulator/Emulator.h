@@ -32,10 +32,15 @@ namespace SKChip8
 
         const CPU &GetCPU() const { return chip8CPU_; }
 
+        void Start();
+        void Stop();
+        void Step();
+
     protected:
         EmulatorDuration getElapsedTime() const;
 
     private:
+        bool running_;
         CPU chip8CPU_;
         double clockPeriodNS_;
         std::chrono::time_point<EmulatorClock> lastExecution_;

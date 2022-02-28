@@ -6,6 +6,9 @@ namespace SKChip8
 {
     void Emulator::Update()
     {
+        if (!running_)
+            return;
+
         int64_t cycles = getElapsedTime().count() / clockPeriodNS_;
 
         chip8CPU_.Cycle();
@@ -37,5 +40,22 @@ namespace SKChip8
     void Emulator::SetKeyState(uint8_t key, bool state)
     {
         chip8CPU_.SetKeyState(key, state);
+    }
+
+    void Emulator::Start()
+    {
+        running_ = true;
+    }
+
+    void Emulator::Stop()
+    {
+        running_ = false;
+    }
+
+    void Emulator::Step()
+    {
+        chip8CPU_.StartTimer();
+        chip8CPU_.Cycle();
+        chip8CPU_.StopTimer();
     }
 }

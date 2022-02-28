@@ -31,6 +31,9 @@ private:
 
 void EmulatorWindow::HandleEvent(const SDL_Event &event)
 {
+    if (!display_)
+        return;
+
     // handle events
     if (event.type == SDL_WINDOWEVENT &&
         event.window.event == SDL_WINDOWEVENT_CLOSE)

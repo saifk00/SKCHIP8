@@ -9,11 +9,16 @@
 class SDLEmuAdapter
 {
 public:
-    SDLEmuAdapter(const std::string &rompath) : ROMPath_(rompath), Emulator_() {}
+    SDLEmuAdapter(const std::string &rompath) : ROMPath_(rompath), Emulator_()
+    {
+        Emulator_.LoadProgram(ROMPath_);
+    }
 
-    void Initialize();
     std::vector<SDL_Point> GetFrameBuffer();
     void UpdateKeyState(const uint8_t *keyState);
+    void Stop();
+    void Start();
+    void Step();
 
     const SKChip8::CPU &GetCPU() const { return Emulator_.GetCPU(); }
 

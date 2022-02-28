@@ -51,10 +51,22 @@ namespace SKChip8
 
         void timerTick();
 
-        const uint16_t &GetPC() const { return programCounter_; }
+        void StopTimer();
+        void StartTimer();
+
+        uint16_t GetPC() const { return programCounter_; }
+        uint16_t GetCurrentInstruction() const { return currentInstruction(); }
+        std::array<uint8_t, CHIP8_MEM_SIZE> GetMemory() const { return memory_; }
+        std::array<uint8_t, REG_COUNT> GetRegisters() const { return registerFile_; }
+        std::array<bool, KEY_COUNT> GetKeyState() const { return keyState_; }
+        std::pair<uint8_t, uint8_t> GetTimers() const
+        {
+            return std::make_pair(delayTimer_, soundTimer_);
+        }
+        uint16_t GetIndexPointer() const { return indexRegister_; }
 
     protected:
-        uint16_t currentInstruction();
+        uint16_t currentInstruction() const;
         void handleInstruction(Instruction &inst);
         void handleInstruction(MachineInstruction &inst);
         void handleInstruction(ALUInstruction &inst);
@@ -90,7 +102,6 @@ namespace SKChip8
         std::array<uint8_t, FRAME_BUFFER_SIZE> frameBuffer_;
         std::stack<uint16_t> callStack_;
 
-        // TODO(sk00) implement this from the injection
         std::array<bool, KEY_COUNT> keyState_;
 
         // whether the CPU is awaiting IO, etc.
@@ -101,6 +112,7 @@ namespace SKChip8
         uint8_t registerAwaitingKey_;
 
         std::mutex timerMutex_;
+        bool timerRunning_ = true;
         uint8_t delayTimer_;
         uint8_t soundTimer_;
         std::thread timerThread_;

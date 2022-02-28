@@ -1,13 +1,20 @@
 #ifndef _DEBUG_WINDOW_H
 #define _DEBUG_WINDOW_H
 
+#include <Utils/CHIP8Utils.h>
+#include <Utils/CHIP8ISA.h>
+
 #include <vector>
 #include <cstdint>
 #include <memory>
+#include <iostream>
+#include <string>
+#include <sstream>
 
 #include "imgui.h"
 #include "imgui_impl_sdl.h"
 #include "imgui_impl_opengl3.h"
+#include "imgui_memory_editor.h"
 
 #include <SDL.h>
 
@@ -25,6 +32,8 @@ protected:
     void initializeWindow();
     void destroyWindow();
     void drawStateInfoPane();
+    void drawMemoryPane();
+    void drawControlPane();
 
 private:
     std::shared_ptr<SDLEmuAdapter> Emulator_;
@@ -43,6 +52,9 @@ DebuggingWindow::DebuggingWindow(std::shared_ptr<SDLEmuAdapter> emulator)
 
 void DebuggingWindow::HandleEvent(const SDL_Event &event)
 {
+    if (!display_)
+        return;
+
     ImGui_ImplSDL2_ProcessEvent(&event);
 
     // handle events
@@ -65,8 +77,9 @@ void DebuggingWindow::Update()
 
     // draw panes
     {
-        ImGui::ShowDemoWindow(NULL);
         drawStateInfoPane();
+        drawMemoryPane();
+        drawControlPane();
     }
 
     // render it
@@ -81,9 +94,80 @@ void DebuggingWindow::Update()
 
 void DebuggingWindow::drawStateInfoPane()
 {
+    static int keymap[] = {
+        1, 2, 3, 0xC,
+        4, 5, 6, 0xD,
+        7, 8, 9, 0xE,
+        0xA, 0, 0xB, 0xF};
+
     ImGui::Begin("State Info");
     const auto &cpu = Emulator_->GetCPU();
-    ImGui::Text("PC: %04X", cpu.GetPC());
+    std::stringstream instructionStringStream;
+    SKChip8::DecodeInstruction(cpu.GetCurrentInstruction())->dump(instructionStringStream);
+
+    ImGui::Text("PC: %04X", cpu.GetPC(), instructionStringStream.str().c_str());
+    ImGui::TextColored(ImVec4(0.090f, 0.929f, 0.933f, 1.0f), "%s\n\n", instructionStringStream.str().c_str());
+
+    ImGui::Text("I: %04X", cpu.GetIndexPointer());
+    // TODO(sk00): add address register, maybe the 5-byte sprite pointed to by I, and timer values
+
+    // print registers inline
+    auto registers = cpu.GetRegisters();
+    ImGui::Text("V0: %02X V1: %02X V2: %02X V3: %02X V4: %02X V5: %02X V6: %02X V7: %02X",
+                registers[0], registers[1], registers[2], registers[3], registers[4], registers[5], registers[6], registers[7]);
+    ImGui::Text("V8: %02X V9: %02X VA: %02X VB: %02X VC: %02X VD: %02X VE: %02X VF: %02X",
+                registers[8], registers[9], registers[10], registers[11], registers[12], registers[13], registers[14], registers[15]);
+
+    // print timers
+    auto timers = cpu.GetTimers();
+    ImGui::Text("Delay Timer: %02X", timers.first);
+    ImGui::SameLine();
+    ImGui::Text("Sound Timer: %02X", timers.second);
+
+    // print keyboard state
+    auto keyboardState = cpu.GetKeyState();
+    ImGui::Text("Keyboard State:");
+    std::stringstream keyboardStateStream;
+    for (int i = 0; i < 16; ++i)
+    {
+        keyboardStateStream << (keyboardState[keymap[i]] ? "1" : "0");
+        if (i % 4 == 3)
+            keyboardStateStream << "\n";
+    }
+    ImGui::Text("%s", keyboardStateStream.str().c_str());
+
+    ImGui::End();
+}
+
+void DebuggingWindow::drawMemoryPane()
+{
+    static MemoryEditor memoryEditor;
+    memoryEditor.ReadOnly = true;
+
+    const auto &cpu = Emulator_->GetCPU();
+    auto memory = cpu.GetMemory();
+
+    memoryEditor.DrawWindow("Memory Editor", memory.data(), memory.size());
+}
+
+void DebuggingWindow::drawControlPane()
+{
+    ImGui::Begin("Controls");
+
+    if (ImGui::Button("Stop"))
+    {
+        Emulator_->Stop();
+    }
+
+    if (ImGui::Button("Start"))
+    {
+        Emulator_->Start();
+    }
+
+    if (ImGui::Button("Step"))
+    {
+        Emulator_->Step();
+    }
 
     ImGui::End();
 }

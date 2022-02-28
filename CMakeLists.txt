@@ -58,6 +58,9 @@ set(IMGUI_INCLUDE_DIRS ${IMGUI_SRC_DIR} ${IMGUI_SRC_DIR}/backends)
 
 target_include_directories(ImGUI PUBLIC "${IMGUI_INCLUDE_DIRS}")
 
+# ImGUI extensions
+set(IMGUI_EXTENSIONS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui_club/imgui_memory_editor)
+
 # GLAD library
 set(GLAD_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/glad/src)
 set(GLAD_INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/glad/include)
@@ -83,6 +86,7 @@ target_include_directories(SKChip8SDL
     PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     ${IMGUI_INCLUDE_DIRS}
+    ${IMGUI_EXTENSIONS_INCLUDE_DIRS}
     ${GLAD_INC_DIR})
 
 # opengl/sdl/imgui test application

@@ -17,13 +17,8 @@ static constexpr std::pair<SDL_Scancode, uint8_t> KEYMAP[SKChip8::KEY_COUNT] = {
     {SDL_SCANCODE_F, 0xE},
     {SDL_SCANCODE_Z, 0xA},
     {SDL_SCANCODE_X, 0x0},
-    {SDL_SCANCODE_C, 0x8},
+    {SDL_SCANCODE_C, 0xB},
     {SDL_SCANCODE_V, 0xF}};
-
-void SDLEmuAdapter::Initialize()
-{
-    Emulator_.LoadProgram(ROMPath_);
-}
 
 std::vector<SDL_Point> SDLEmuAdapter::GetFrameBuffer()
 {
@@ -52,4 +47,19 @@ void SDLEmuAdapter::UpdateKeyState(const uint8_t *keyState)
     {
         Emulator_.SetKeyState(kv.second, keyState[kv.first]);
     }
+}
+
+void SDLEmuAdapter::Stop()
+{
+    Emulator_.Stop();
+}
+
+void SDLEmuAdapter::Start()
+{
+    Emulator_.Start();
+}
+
+void SDLEmuAdapter::Step()
+{
+    Emulator_.Step();
 }

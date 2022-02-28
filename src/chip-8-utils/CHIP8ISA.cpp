@@ -193,7 +193,7 @@ namespace SKChip8
         case InstructionType::SkipIfPressed:
             return os << "SKPRESS\t\t" << RegisterPrinter(RegisterX());
         case InstructionType::SkipIfNotPressed:
-            return os << "SKNPRESS\t\t" << RegisterPrinter(RegisterY());
+            return os << "SKNPRESS\t\t" << RegisterPrinter(RegisterX());
         default:
             throw std::invalid_argument("INVALID KEY INSTRUCTION");
         }

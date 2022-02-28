@@ -101,13 +101,12 @@ namespace SKChip8
         systemClock_ = 0;
 
         // start a real-time thread for the 60Hz timers
-        timerThread_ = std::thread([](CPU *cpu)
+        timerThread_ = std::thread([this]()
                                    {
             while(true) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(16));
-                cpu->timerTick();
-            } },
-                                   this);
+                timerTick();
+            } });
     }
 
     void CPU::LoadROM(std::vector<uint8_t> buffer)
@@ -117,7 +116,7 @@ namespace SKChip8
         shouldIncrementPC_ = true;
     }
 
-    uint16_t CPU::currentInstruction()
+    uint16_t CPU::currentInstruction() const
     {
         return memory_[programCounter_] << 8 | memory_[programCounter_ + 1];
     }
@@ -184,7 +183,7 @@ namespace SKChip8
             shouldIncrementPC_ = false;
             break;
         case InstructionType::Call:
-            callStack_.push(programCounter_);
+            callStack_.push(programCounter_ + 2);
             programCounter_ = inst.Address();
             shouldIncrementPC_ = false;
             break;
@@ -246,7 +245,7 @@ namespace SKChip8
         switch (inst.Type)
         {
         case InstructionType::MachineCall:
-            callStack_.push(programCounter_);
+            callStack_.push(programCounter_ + 2);
             programCounter_ = inst.Address();
             shouldIncrementPC_ = false;
             break;
@@ -371,12 +370,12 @@ namespace SKChip8
         }
         case InstructionType::RegisterDump:
             std::copy(registerFile_.begin(),
-                      registerFile_.end(),
+                      registerFile_.begin() + inst.RegisterX() + 1,
                       memory_.begin() + indexRegister_);
             break;
         case InstructionType::RegisterRestore:
             std::copy(memory_.begin() + indexRegister_,
-                      memory_.begin() + indexRegister_ + registerFile_.size(),
+                      memory_.begin() + indexRegister_ + inst.RegisterX() + 1,
                       registerFile_.begin());
             break;
         }
@@ -402,22 +401,10 @@ namespace SKChip8
 
     void CPU::timerTick()
     {
-        // auto now = std::chrono::high_resolution_clock::now();
-        // auto delta = now - lastTimerTick_;
-        // auto deltaMs = std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
-
-        // // the clock runs at 60Hz so the number of ticks is
-        // // ms * (60 ticks / 1000 ms)
-        // auto ticks = static_cast<uint8_t>(deltaMs * 60.0 / 1000.0);
-
-        // if (delayTimer_ > 0)
-        //     delayTimer_ = std::max(0, delayTimer_ - ticks);
-        // if (soundTimer_ > 0)
-        //     delayTimer_ = std::max(0, soundTimer_ - ticks);
-
-        // lastTimerTick_ = now;
-
         std::lock_guard<std::mutex> lock(timerMutex_);
+        if (!timerRunning_)
+            return;
+
         if (delayTimer_ > 0)
         {
             --delayTimer_;
@@ -426,6 +413,16 @@ namespace SKChip8
         {
             --soundTimer_;
         }
+    }
+
+    void CPU::StopTimer()
+    {
+        timerRunning_ = false;
+    }
+
+    void CPU::StartTimer()
+    {
+        timerRunning_ = true;
     }
 
     void CPU::Cycle()
