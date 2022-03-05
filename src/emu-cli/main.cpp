@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
     bool shouldStop = false;
     while (!shouldStop)
     {
-        emulator.Update();
+        emulator.Step();
         auto frame = emulator.GetFrameBuffer();
 
         for (size_t i = 0; i < frame.size(); ++i)

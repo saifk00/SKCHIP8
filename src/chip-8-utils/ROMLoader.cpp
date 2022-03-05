@@ -12,36 +12,17 @@ using namespace SKChip8;
 ROMLoader::ROMLoader(std::string filename)
 {
     this->filename_ = filename;
-}
 
-void ROMLoader::parse()
-{
-    std::ifstream ifs(filename_, std::ios::binary | std::ios::in);
+    std::ifstream ifs(filename_, std::ios::in | std::ios::binary);
 
     if (!ifs.is_open())
     {
-        std::cout << "failed to open ROM file " << filename_ << '\n';
-        throw new std::exception();
-    }
-    else
-    {
-        std::vector<uint8_t> data;
-
-        while (1)
-        {
-            // TODO(sk00) make the endianness consistent.
-            char c;
-            ifs.read(&c, sizeof(uint8_t));
-            if (ifs.eof())
-                break;
-
-            data.push_back(c);
-        }
-
-        this->buffer_ = data;
+        throw std::runtime_error("Could not open file: " + filename_);
     }
 
-    ifs.close();
+    this->buffer_ = std::vector<uint8_t>(
+        std::istreambuf_iterator<char>(ifs),
+        std::istreambuf_iterator<char>());
 }
 
 std::string ROMLoader::getDisassembly() const

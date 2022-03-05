@@ -7,22 +7,10 @@
 #include <cstring>
 #include <algorithm>
 
-static constexpr std::array<uint16_t, 256> BCD_Table = {
-    0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x20,
-    0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x40,
-    0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x60,
-    0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x80,
-    0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x100,
-    0x101, 0x102, 0x103, 0x104, 0x105, 0x106, 0x107, 0x108, 0x109, 0x110, 0x111, 0x112, 0x113, 0x114, 0x115, 0x116, 0x117, 0x118, 0x119, 0x120,
-    0x121, 0x122, 0x123, 0x124, 0x125, 0x126, 0x127, 0x128, 0x129, 0x130, 0x131, 0x132, 0x133, 0x134, 0x135, 0x136, 0x137, 0x138, 0x139, 0x140,
-    0x141, 0x142, 0x143, 0x144, 0x145, 0x146, 0x147, 0x148, 0x149, 0x150, 0x151, 0x152, 0x153, 0x154, 0x155, 0x156, 0x157, 0x158, 0x159, 0x160,
-    0x161, 0x162, 0x163, 0x164, 0x165, 0x166, 0x167, 0x168, 0x169, 0x170, 0x171, 0x172, 0x173, 0x174, 0x175, 0x176, 0x177, 0x178, 0x179, 0x180,
-    0x181, 0x182, 0x183, 0x184, 0x185, 0x186, 0x187, 0x188, 0x189, 0x190, 0x191, 0x192, 0x193, 0x194, 0x195, 0x196, 0x197, 0x198, 0x199, 0x200,
-    0x201, 0x202, 0x203, 0x204, 0x205, 0x206, 0x207, 0x208, 0x209, 0x210, 0x211, 0x212, 0x213, 0x214, 0x215, 0x216, 0x217, 0x218, 0x219, 0x220,
-    0x221, 0x222, 0x223, 0x224, 0x225, 0x226, 0x227, 0x228, 0x229, 0x230, 0x231, 0x232, 0x233, 0x234, 0x235, 0x236, 0x237, 0x238, 0x239, 0x240,
-    0x241, 0x242, 0x243, 0x244, 0x245, 0x246, 0x247, 0x248, 0x249, 0x250, 0x251, 0x252, 0x253, 0x254};
+static constexpr uint16_t FONT_BYTES = 5;
+static constexpr uint16_t FONT_DATA_SIZE = FONT_BYTES * 16;
 
-static constexpr uint8_t font_data[SKChip8::FONT_DATA_SIZE] = {
+static constexpr uint8_t font_data[FONT_DATA_SIZE] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -40,6 +28,10 @@ static constexpr uint8_t font_data[SKChip8::FONT_DATA_SIZE] = {
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
+
+// special registers implicitly used in some instructions
+static constexpr uint8_t VF_ = 0xF;
+static constexpr uint8_t V0_ = 0x0;
 
 namespace
 {
@@ -79,8 +71,6 @@ namespace
 
 namespace SKChip8
 {
-    // TODO(sk00) dependency inject a frame and audio buffer to connect this to display,
-    // audio, input, and timers
     CPU::CPU()
     {
         // initialize timers, peripherals, etc.
@@ -99,14 +89,6 @@ namespace SKChip8
         delayTimer_ = 0;
         soundTimer_ = 0;
         systemClock_ = 0;
-
-        // start a real-time thread for the 60Hz timers
-        timerThread_ = std::thread([this]()
-                                   {
-            while(true) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(16));
-                timerTick();
-            } });
     }
 
     void CPU::LoadROM(std::vector<uint8_t> buffer)
@@ -124,6 +106,7 @@ namespace SKChip8
     void CPU::drawSprite(uint8_t x, uint8_t y, uint8_t n)
     {
         const uint8_t offset = x % 8;
+        bool collision = false;
         for (size_t idx = 0; idx < n; ++idx)
         {
             const auto &row = memory_[indexRegister_ + idx];
@@ -155,20 +138,24 @@ namespace SKChip8
             const auto spriteNextPart = (row << (8 - offset));
 
             // always set the current byte
-            registerFile_[VF_] = (frameBuffer_[frameIndex] & spriteThisPart)
-                                     ? 1
-                                     : 0;
+            if (!collision)
+            {
+                collision = (frameBuffer_[frameIndex] & spriteThisPart);
+            }
             frameBuffer_[frameIndex] ^= spriteThisPart;
 
             // the sprite may overflow to the next byte
             if (offset > 0 && frameIndex < FRAME_BUFFER_SIZE - 1)
             {
-                registerFile_[VF_] = (frameBuffer_[frameIndex + 1] & spriteNextPart)
-                                         ? 1
-                                         : registerFile_[VF_];
+                if (!collision)
+                {
+                    collision = (frameBuffer_[frameIndex + 1] & spriteNextPart);
+                }
                 frameBuffer_[frameIndex + 1] ^= spriteNextPart;
             }
         }
+
+        registerFile_[VF_] = collision ? 1 : 0;
     }
 
     void CPU::handleInstruction(Instruction &inst)
@@ -232,8 +219,9 @@ namespace SKChip8
             registerFile_[inst.RegisterX()] = std::rand() & inst.Immediate();
             break;
         case InstructionType::DrawSprite:
-            auto x = registerFile_[inst.RegisterX()];
-            auto y = registerFile_[inst.RegisterY()];
+            // coordinates wrap around the screen
+            auto x = registerFile_[inst.RegisterX()] % SCR_WIDTH;
+            auto y = registerFile_[inst.RegisterY()] % SCR_HEIGHT;
             drawSprite(x, y, inst.PixelHeight());
             break;
         }
@@ -332,27 +320,18 @@ namespace SKChip8
         switch (inst.Type)
         {
         case InstructionType::GetDelay:
-        {
-            std::lock_guard<std::mutex> lock(timerMutex_);
             registerFile_[inst.RegisterX()] = delayTimer_;
             break;
-        }
         case InstructionType::AwaitAndGetKey:
             halted_ = true;
             registerAwaitingKey_ = inst.RegisterX();
             break;
         case InstructionType::SetDelayTimer:
-        {
-            std::lock_guard<std::mutex> lock(timerMutex_);
             delayTimer_ = registerFile_[inst.RegisterX()];
             break;
-        }
         case InstructionType::SetSoundTimer:
-        {
-            std::lock_guard<std::mutex> lock(timerMutex_);
             soundTimer_ = registerFile_[inst.RegisterX()];
             break;
-        }
         case InstructionType::IncrementAddress:
             indexRegister_ += registerFile_[inst.RegisterX()];
             break;
@@ -361,11 +340,11 @@ namespace SKChip8
             break;
         case InstructionType::StoreBCD:
         {
+            // hundreds, tens, ones starting at index
             auto &reg = registerFile_[inst.RegisterX()];
-            // doing a while loop would not be constant time
-            memory_[indexRegister_ + 0] = (BCD_Table[reg] >> 8) & 0xF;
-            memory_[indexRegister_ + 1] = (BCD_Table[reg] >> 4) & 0xF;
-            memory_[indexRegister_ + 2] = (BCD_Table[reg] >> 0) & 0xF;
+            memory_[indexRegister_ + 0] = reg / 100;
+            memory_[indexRegister_ + 1] = (reg / 10) % 10;
+            memory_[indexRegister_ + 2] = reg % 10;
             break;
         }
         case InstructionType::RegisterDump:
@@ -399,36 +378,21 @@ namespace SKChip8
         return buf;
     }
 
-    void CPU::timerTick()
+    void CPU::TimerTick()
     {
-        std::lock_guard<std::mutex> lock(timerMutex_);
-        if (!timerRunning_)
-            return;
-
         if (delayTimer_ > 0)
         {
-            --delayTimer_;
+            delayTimer_--;
         }
         if (soundTimer_ > 0)
         {
-            --soundTimer_;
+            soundTimer_--;
         }
-    }
-
-    void CPU::StopTimer()
-    {
-        timerRunning_ = false;
-    }
-
-    void CPU::StartTimer()
-    {
-        timerRunning_ = true;
     }
 
     void CPU::Cycle()
     {
-        std::cerr << DumpState() << std::endl;
-
+        // std::cerr << DumpState() << std::endl;
         systemClock_++;
 
         if (halted_)

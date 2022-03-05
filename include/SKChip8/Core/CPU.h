@@ -11,6 +11,8 @@
 #include <mutex>
 #include <thread>
 
+using namespace std::chrono_literals;
+
 namespace SKChip8
 {
     static constexpr size_t REG_COUNT = 16;
@@ -21,14 +23,11 @@ namespace SKChip8
     static constexpr uint8_t SCR_WIDTH = 64;
     static constexpr size_t KEY_COUNT = 16;
     static constexpr uint16_t FONT_MEMORY_OFFSET = 0x000;
-    // each font sprite is 5 bytes
-    static constexpr uint16_t FONT_BYTES = 5;
-    static constexpr uint16_t FONT_DATA_SIZE = FONT_BYTES * 16;
     static constexpr uint16_t FRAME_BUFFER_SIZE = (SCR_WIDTH / 8) * SCR_HEIGHT;
 
-    // special registers implicitly used in some instructions
-    static constexpr uint8_t VF_ = 0xF;
-    static constexpr uint8_t V0_ = 0x0;
+    // timer period (60Hz)
+    static constexpr auto TIMER_PERIOD = 16.67ms;
+    static constexpr auto TIMER_HZ = 60.0;
 
     class CPU
     {
@@ -49,10 +48,8 @@ namespace SKChip8
 
         std::string DumpState() const;
 
-        void timerTick();
-
-        void StopTimer();
-        void StartTimer();
+        // Updates the timers by one tick
+        void TimerTick();
 
         uint16_t GetPC() const { return programCounter_; }
         uint16_t GetCurrentInstruction() const { return currentInstruction(); }
@@ -111,11 +108,9 @@ namespace SKChip8
         // of the pressed key
         uint8_t registerAwaitingKey_;
 
-        std::mutex timerMutex_;
-        bool timerRunning_ = true;
+        // timer values
         uint8_t delayTimer_;
         uint8_t soundTimer_;
-        std::thread timerThread_;
 
         // state updated async to cpu clock cycles (e.g. keyboard)
         uint8_t externState_;

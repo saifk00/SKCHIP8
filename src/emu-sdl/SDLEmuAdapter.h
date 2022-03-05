@@ -6,25 +6,31 @@
 #include <string>
 #include <SKChip8/Emulator/Emulator.h>
 
-class SDLEmuAdapter
+class SDLEmuAdapter : public SKChip8::Emulator
 {
 public:
-    SDLEmuAdapter(const std::string &rompath) : ROMPath_(rompath), Emulator_()
+    SDLEmuAdapter(const std::string &rompath) : ROMPath_(rompath)
     {
-        Emulator_.LoadProgram(ROMPath_);
+        LoadProgram(ROMPath_);
+        running_ = false;
+        SetFPS(60);
     }
 
     std::vector<SDL_Point> GetFrameBuffer();
-    void UpdateKeyState(const uint8_t *keyState);
-    void Stop();
-    void Start();
-    void Step();
+    void UpdateKeyState();
+    void Enable();
+    void Disable();
+    void Update();
+    void SetFPS(double fps);
 
-    const SKChip8::CPU &GetCPU() const { return Emulator_.GetCPU(); }
+    double GetFPS() const { return fps_; }
+    double GetInstructionsPerFrame() const { return instructionsPerFrame_; }
 
 private:
-    SKChip8::Emulator Emulator_;
     std::string ROMPath_;
+    bool running_;
+    uint64_t instructionsPerFrame_;
+    double fps_;
 };
 
 #endif

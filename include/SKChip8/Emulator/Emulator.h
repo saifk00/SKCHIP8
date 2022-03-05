@@ -5,45 +5,41 @@
 #include <chrono>
 #include <string>
 
+using namespace std::chrono_literals;
+
 namespace SKChip8
 {
     using EmulatorClock = std::chrono::steady_clock;
     using EmulatorDuration = std::chrono::nanoseconds;
 
-    static constexpr double EMULATOR_DEFAULT_FREQUENCY_MHZ = 1.79;
-    static constexpr int64_t HZ_PER_MHZ = 1'000;
-    static constexpr double NS_PER_S = 1'000'000'000;
+    // the rate at which instructions are executed. note this is not the same
+    // as the clock speed which (on the COSMAC VIP) is 1.76MHz
+    static constexpr auto EMULATOR_CPU_HZ = 550;
 
     class Emulator
     {
 
     public:
-        // ns = (1 / [MHZ] * [HZ/MHZ]) * [NS/S]
-        Emulator(double clockFreq_ = EMULATOR_DEFAULT_FREQUENCY_MHZ)
-            : clockPeriodNS_(NS_PER_S / (clockFreq_ * HZ_PER_MHZ)), chip8CPU_(){};
+        Emulator()
+        {
+            chip8CPU_ = std::make_shared<CPU>();
+            instructionsSinceLastTick_ = 0;
+            instructionsPerTick_ = EMULATOR_CPU_HZ / SKChip8::TIMER_HZ;
+        }
 
         void LoadProgram(const std::string &rompath);
-
-        void Update();
-
-        CPU::FrameBuffer GetFrameBuffer() const { return chip8CPU_.GetFrameBuffer(); }
-
+        void Step();
         void SetKeyState(uint8_t key, bool state);
 
-        const CPU &GetCPU() const { return chip8CPU_; }
+        CPU::FrameBuffer GetFrameBuffer() const { return chip8CPU_->GetFrameBuffer(); }
+        std::shared_ptr<const CPU> GetCPU() const { return chip8CPU_; }
 
-        void Start();
-        void Stop();
-        void Step();
-
-    protected:
-        EmulatorDuration getElapsedTime() const;
+        uint64_t GetIPT() const { return instructionsPerTick_; }
 
     private:
-        bool running_;
-        CPU chip8CPU_;
-        double clockPeriodNS_;
-        std::chrono::time_point<EmulatorClock> lastExecution_;
+        std::shared_ptr<CPU> chip8CPU_;
+        uint64_t instructionsPerTick_;
+        uint64_t instructionsSinceLastTick_;
     };
 }
 

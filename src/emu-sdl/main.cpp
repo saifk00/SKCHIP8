@@ -23,7 +23,6 @@ int main(int argc, char *argv[])
     }
 
     auto rom = argc < 2 ? "../roms/maze.ch8" : argv[1];
-
     {
         auto emulator = std::make_shared<SDLEmuAdapter>(rom);
 
@@ -36,6 +35,7 @@ int main(int argc, char *argv[])
             // handle and dispatch events
             while (SDL_PollEvent(&event))
             {
+                // TODO(sk00) do this better
                 if (event.window.windowID == debugWindow.GetWindowID())
                 {
                     debugWindow.HandleEvent(event);
@@ -50,8 +50,6 @@ int main(int argc, char *argv[])
                     break;
                 }
             }
-
-            emulator->UpdateKeyState(SDL_GetKeyboardState(NULL));
 
             emulatorWindow.Update();
             debugWindow.Update();

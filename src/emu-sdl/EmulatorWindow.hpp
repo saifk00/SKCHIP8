@@ -47,13 +47,28 @@ void EmulatorWindow::Update()
     if (!display_)
         return;
 
+    uint64_t start = SDL_GetPerformanceCounter();
+
+    emulator_->UpdateKeyState();
+
+    emulator_->Update();
+
     auto frame = emulator_->GetFrameBuffer();
 
     SDL_SetRenderDrawColor(renderer_, 0x00, 0x00, 0x00, 0x00);
     SDL_RenderClear(renderer_);
-    SDL_SetRenderDrawColor(renderer_, 255, 255, 255, SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(renderer_, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
     SDL_RenderDrawPoints(renderer_, frame.data(), frame.size());
     SDL_RenderPresent(renderer_);
+
+    uint64_t end = SDL_GetPerformanceCounter();
+    float elapsed = (end - start) / (float)SDL_GetPerformanceFrequency();
+
+    SDL_Delay(16.666f - elapsed * 1000.0f);
+
+    uint64_t end2 = SDL_GetPerformanceCounter();
+    float elapsed2 = (end2 - end) / (float)SDL_GetPerformanceFrequency();
+    emulator_->SetFPS(1.0 / elapsed2);
 }
 
 EmulatorWindow::EmulatorWindow(std::shared_ptr<SDLEmuAdapter> emulator)

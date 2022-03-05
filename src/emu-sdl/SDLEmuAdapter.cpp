@@ -22,10 +22,8 @@ static constexpr std::pair<SDL_Scancode, uint8_t> KEYMAP[SKChip8::KEY_COUNT] = {
 
 std::vector<SDL_Point> SDLEmuAdapter::GetFrameBuffer()
 {
-    Emulator_.Update();
-
     std::vector<SDL_Point> points;
-    auto arr = Emulator_.GetFrameBuffer();
+    auto arr = SKChip8::Emulator::GetFrameBuffer();
     for (int y = 0; y < arr.size(); ++y)
     {
         for (int x = 0; x < arr[y].size(); ++x)
@@ -40,26 +38,40 @@ std::vector<SDL_Point> SDLEmuAdapter::GetFrameBuffer()
     return points;
 }
 
-void SDLEmuAdapter::UpdateKeyState(const uint8_t *keyState)
+void SDLEmuAdapter::UpdateKeyState()
 {
+    const auto keyState = SDL_GetKeyboardState(NULL);
+
     // transform the keymap from SDL to Chip8
     for (auto &kv : KEYMAP)
     {
-        Emulator_.SetKeyState(kv.second, keyState[kv.first]);
+        SetKeyState(kv.second, keyState[kv.first]);
     }
 }
 
-void SDLEmuAdapter::Stop()
+void SDLEmuAdapter::SetFPS(double fps)
 {
-    Emulator_.Stop();
+    fps_ = fps;
+    instructionsPerFrame_ = SKChip8::EMULATOR_CPU_HZ / fps;
 }
 
-void SDLEmuAdapter::Start()
+void SDLEmuAdapter::Enable()
 {
-    Emulator_.Start();
+    running_ = true;
 }
 
-void SDLEmuAdapter::Step()
+void SDLEmuAdapter::Disable()
 {
-    Emulator_.Step();
+    running_ = false;
+}
+
+void SDLEmuAdapter::Update()
+{
+    if (running_)
+    {
+        for (int i = 0; i < instructionsPerFrame_; ++i)
+        {
+            SKChip8::Emulator::Step();
+        }
+    }
 }

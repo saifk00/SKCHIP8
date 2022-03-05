@@ -15,8 +15,6 @@ namespace SKChip8
     public:
         ROMLoader(std::string filename);
 
-        void parse();
-
         std::string getDisassembly() const;
         std::string getDump() const;
         std::vector<uint8_t> getROM() const;
