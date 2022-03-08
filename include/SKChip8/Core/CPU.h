@@ -56,10 +56,8 @@ namespace SKChip8
         std::array<uint8_t, CHIP8_MEM_SIZE> GetMemory() const { return memory_; }
         std::array<uint8_t, REG_COUNT> GetRegisters() const { return registerFile_; }
         std::array<bool, KEY_COUNT> GetKeyState() const { return keyState_; }
-        std::pair<uint8_t, uint8_t> GetTimers() const
-        {
-            return std::make_pair(delayTimer_, soundTimer_);
-        }
+        uint8_t GetDelayTimer() const { return delayTimer_; }
+        uint8_t GetSoundTimer() const { return soundTimer_; }
         uint16_t GetIndexPointer() const { return indexRegister_; }
 
     protected:

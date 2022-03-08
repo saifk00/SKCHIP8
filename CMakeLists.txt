@@ -73,7 +73,8 @@ add_executable(SKChip8SDL WIN32
     ${CHIP8_SDL_SRC_DIR}/main.cpp
     ${CHIP8_SDL_SRC_DIR}/SDLEmuAdapter.cpp
     ${CHIP8_SDL_SRC_DIR}/DebuggingWindow.hpp
-    ${CHIP8_SDL_SRC_DIR}/EmulatorWindow.hpp)
+    ${CHIP8_SDL_SRC_DIR}/EmulatorWindow.hpp
+    ${CHIP8_SDL_SRC_DIR}/TonePlayer.cpp)
 
 target_link_libraries(SKChip8SDL
     GLAD

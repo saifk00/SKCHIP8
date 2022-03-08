@@ -1,7 +1,5 @@
 #include "Emulator.h"
 
-#include <Utils/ROMLoader.h>
-
 namespace SKChip8
 {
     void Emulator::Step()
@@ -15,11 +13,23 @@ namespace SKChip8
         }
     }
 
+    void Emulator::Reset()
+    {
+        chip8CPU_ = std::make_shared<CPU>();
+        instructionsSinceLastTick_ = 0;
+        reloadROM();
+    }
+
+    void Emulator::reloadROM()
+    {
+        chip8CPU_->LoadROM(ROM_.getROM());
+    }
+
     void Emulator::LoadProgram(const std::string &rompath)
     {
-        ROMLoader r(rompath);
+        ROM_ = ROMLoader(rompath);
 
-        chip8CPU_->LoadROM(r.getROM());
+        reloadROM();
     }
 
     void Emulator::SetKeyState(uint8_t key, bool state)

@@ -2,6 +2,7 @@
 #define _EMULATOR_H
 
 #include <Core/CPU.h>
+#include <Utils/ROMLoader.h>
 #include <chrono>
 #include <string>
 
@@ -28,6 +29,7 @@ namespace SKChip8
         }
 
         void LoadProgram(const std::string &rompath);
+        void Reset();
         void Step();
         void SetKeyState(uint8_t key, bool state);
 
@@ -36,8 +38,13 @@ namespace SKChip8
 
         uint64_t GetIPT() const { return instructionsPerTick_; }
 
-    private:
+    protected:
         std::shared_ptr<CPU> chip8CPU_;
+
+    private:
+        void reloadROM();
+
+        ROMLoader ROM_;
         uint64_t instructionsPerTick_;
         uint64_t instructionsSinceLastTick_;
     };

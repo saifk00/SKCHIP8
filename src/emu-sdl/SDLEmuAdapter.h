@@ -2,6 +2,7 @@
 #define SDL_EMU_ADAPTER_H
 
 #include "SDL.h"
+#include "TonePlayer.h"
 
 #include <string>
 #include <SKChip8/Emulator/Emulator.h>
@@ -9,7 +10,7 @@
 class SDLEmuAdapter : public SKChip8::Emulator
 {
 public:
-    SDLEmuAdapter(const std::string &rompath) : ROMPath_(rompath)
+    SDLEmuAdapter(const std::string &rompath) : ROMPath_(rompath), tonePlayer_(440, 1.0)
     {
         LoadProgram(ROMPath_);
         running_ = false;
@@ -27,6 +28,7 @@ public:
     double GetInstructionsPerFrame() const { return instructionsPerFrame_; }
 
 private:
+    TonePlayer tonePlayer_;
     std::string ROMPath_;
     bool running_;
     uint64_t instructionsPerFrame_;

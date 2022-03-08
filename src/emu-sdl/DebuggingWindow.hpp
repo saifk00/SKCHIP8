@@ -121,10 +121,11 @@ void DebuggingWindow::drawStateInfoPane()
                 registers[8], registers[9], registers[10], registers[11], registers[12], registers[13], registers[14], registers[15]);
 
     // print timers
-    auto timers = cpu->GetTimers();
-    ImGui::Text("Delay Timer: %02X", timers.first);
+    auto delaytimer = cpu->GetDelayTimer();
+    auto soundtimer = cpu->GetSoundTimer();
+    ImGui::Text("Delay Timer: %02X", delaytimer);
     ImGui::SameLine();
-    ImGui::Text("Sound Timer: %02X", timers.second);
+    ImGui::Text("Sound Timer: %02X", soundtimer);
 
     // print keyboard state
     auto keyboardState = cpu->GetKeyState();
@@ -171,6 +172,11 @@ void DebuggingWindow::drawControlPane()
         emulator_->Step();
     }
 
+    if (ImGui::Button("Reset"))
+    {
+        emulator_->Reset();
+    }
+
     ImGui::End();
 }
 
@@ -198,7 +204,7 @@ void DebuggingWindow::initializeWindow()
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-    window_ = SDL_CreateWindow("Dear ImGui SDL2+OpenGL3 example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
+    window_ = SDL_CreateWindow("Chip-8 Debugging", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
     glContext_ = SDL_GL_CreateContext(window_);
 
     // initialize OpenGL context

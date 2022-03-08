@@ -13,6 +13,7 @@ namespace SKChip8
     class ROMLoader
     {
     public:
+        ROMLoader() = default;
         ROMLoader(std::string filename);
 
         std::string getDisassembly() const;

@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 {
     SDL_Event event;
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0)
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0)
     {
         std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
         return 1;

@@ -72,6 +72,15 @@ void SDLEmuAdapter::Update()
         for (int i = 0; i < instructionsPerFrame_; ++i)
         {
             SKChip8::Emulator::Step();
+
+            if (chip8CPU_->GetSoundTimer() > 0)
+            {
+                tonePlayer_.Play();
+            }
+            else if (chip8CPU_->GetSoundTimer() == 0)
+            {
+                tonePlayer_.Pause();
+            }
         }
     }
 }
