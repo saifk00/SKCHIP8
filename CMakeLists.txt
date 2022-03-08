@@ -59,7 +59,9 @@ set(IMGUI_INCLUDE_DIRS ${IMGUI_SRC_DIR} ${IMGUI_SRC_DIR}/backends)
 target_include_directories(ImGUI PUBLIC "${IMGUI_INCLUDE_DIRS}")
 
 # ImGUI extensions
-set(IMGUI_EXTENSIONS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui_club/imgui_memory_editor)
+set(IMGUI_EXTENSIONS_INCLUDE_DIRS 
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui_club/imgui_memory_editor
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui_fd)
 
 # GLAD library
 set(GLAD_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/glad/src)
@@ -74,7 +76,8 @@ add_executable(SKChip8SDL WIN32
     ${CHIP8_SDL_SRC_DIR}/SDLEmuAdapter.cpp
     ${CHIP8_SDL_SRC_DIR}/DebuggingWindow.hpp
     ${CHIP8_SDL_SRC_DIR}/EmulatorWindow.hpp
-    ${CHIP8_SDL_SRC_DIR}/TonePlayer.cpp)
+    ${CHIP8_SDL_SRC_DIR}/TonePlayer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui_fd/ImGuiFileDialog.cpp)
 
 target_link_libraries(SKChip8SDL
     GLAD

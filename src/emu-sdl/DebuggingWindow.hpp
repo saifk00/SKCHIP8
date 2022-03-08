@@ -16,6 +16,8 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_memory_editor.h"
 
+#include "ImGuiFileDialog.h"
+
 #include <SDL.h>
 
 #include "SDLEmuAdapter.h"
@@ -150,7 +152,7 @@ void DebuggingWindow::drawMemoryPane()
     const auto &cpu = emulator_->GetCPU();
     auto memory = cpu->GetMemory();
 
-    memoryEditor.DrawWindow("Memory Editor", memory.data(), memory.size());
+    memoryEditor.DrawWindow("Memory Viewer", memory.data(), memory.size());
 }
 
 void DebuggingWindow::drawControlPane()
@@ -175,6 +177,24 @@ void DebuggingWindow::drawControlPane()
     if (ImGui::Button("Reset"))
     {
         emulator_->Reset();
+    }
+
+    if (ImGui::Button("Load ROM"))
+    {
+        ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose a ROM", ".ch8,.bin,.rom", ".");
+    }
+
+    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
+    {
+        if (ImGuiFileDialog::Instance()->IsOk())
+        {
+            auto rompath = ImGuiFileDialog::Instance()->GetFilePathName();
+
+            emulator_->LoadProgram(rompath);
+            emulator_->Reset();
+        }
+
+        ImGuiFileDialog::Instance()->Close();
     }
 
     ImGui::End();
